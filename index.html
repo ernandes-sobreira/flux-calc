@@ -9,15 +9,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --ink:#0e1a12; --ink2:#3a4a40; --muted:#7a8c82; --line:#dce8e0;
-  --bg:#f7fbf8; --white:#ffffff;
-  --leaf:#1a6e3c; --leaf2:#28a05a; --leafp:#eaf5ee;
-  --gold:#c98a2a; --goldp:#fdf4e3;
-  --sky:#2566a8; --skyp:#e8f0fa;
-  --red:#dc2626; --redp:#fef2f2;
+  --ink:#060f09; --ink2:#1a2e20; --muted:#3d6047; --line:#9ec4ad;
+  --bg:#e8f4ec; --white:#ffffff;
+  --leaf:#0a5226; --leaf2:#127a3a; --leafp:#c2e8cf;
+  --gold:#7a4e00; --goldp:#f5e0a0;
+  --sky:#0d3d8a; --skyp:#bcd5f7;
+  --red:#991b1b; --redp:#fecaca;
   --r:12px; --rs:8px;
-  --sh:0 1px 3px rgba(14,26,18,.07),0 4px 20px rgba(14,26,18,.08);
-  --sh2:0 2px 8px rgba(14,26,18,.12);
+  --sh:0 2px 8px rgba(6,15,9,.12),0 6px 28px rgba(6,15,9,.12);
+  --sh2:0 3px 12px rgba(6,15,9,.18);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{font-size:16px;scroll-behavior:smooth}
@@ -298,9 +298,9 @@ td{padding:8px 12px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;fon
 <header class="hero">
   <div class="hero-top">
     <div>
-      <div class="hero-eyebrow">🌿 CO₂ Chamber Flux Analyzer</div>
+      <div class="hero-eyebrow">🌿🪴 CO₂ Chamber Flux Analyzer</div>
       <h1 class="hero-title">FluxCalc — CO<sup>₂</sup></h1>
-      <p class="hero-sub">Análise de fluxo em câmaras de incubação. Dados brutos → regressão linear → mg CO₂ m⁻² dia⁻¹</p>
+      <p class="hero-sub">🌱 Planta · 💧 Água · 🪨 Solo &nbsp;·&nbsp; Dados brutos → regressão linear → mg CO₂ m⁻² dia⁻¹</p>
     </div>
   </div>
   <div class="hero-kpi">
@@ -340,17 +340,7 @@ td{padding:8px 12px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;fon
     </div>
   </div>
 
-  <div class="card">
-    <div class="ch"><div class="ci ci-o">📓</div><div><div class="ct">Diário de Campo</div><div class="cd">Anotações cronológicas durante a coleta</div></div></div>
-    <div id="diaryList"></div>
-    <div class="sep"></div>
-    <div class="row2">
-      <div class="field"><label>Autor da anotação</label><input type="text" id="deAuthor" placeholder="Seu nome"></div>
-      <div class="field"><label>Data/hora</label><input type="datetime-local" id="deDate"></div>
-    </div>
-    <div class="field"><label>Anotação</label><textarea id="deText" rows="3" style="font-family:'IBM Plex Sans',sans-serif;font-size:13px" placeholder="ex: Temperatura ambiente ~33°C, umidade alta, câmara lacrada às 09:20h..."></textarea></div>
-    <button class="btn btn-o btn-sm" onclick="addDiaryEntry()">+ Adicionar anotação</button>
-  </div>
+<!-- diário removido -->
 
   <div class="card">
     <div class="ch"><div class="ci ci-b">📸</div><div><div class="ct">Fotos da Coleta</div><div class="cd">Registros fotográficos do experimento</div></div></div>
@@ -424,7 +414,7 @@ td{padding:8px 12px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;fon
     <div class="ch"><div class="ci ci-o">🏷</div><div><div class="ct">Identificação da câmara</div></div></div>
     <div class="row2">
       <div class="field"><label>Nome da câmara</label><input type="text" id="cName" placeholder="ex: Clara, Escura..."></div>
-      <div class="field"><label>Compartimento</label><input type="text" id="cComp" placeholder="ex: planta, água, solo..."></div>
+      <div class="field"><label>Compartimento</label><input type="text" id="cComp" placeholder="ex: 🌱 planta, 💧 água, 🪨 solo"></div>
     </div>
     <div class="row2">
       <div class="field"><label>Horário / período</label><input type="text" id="cTime" placeholder="ex: 9h, manhã"></div>
@@ -452,14 +442,14 @@ td{padding:8px 12px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;fon
 <!-- ═══════════════════════════════════════════ -->
 <div class="panel h" id="p3">
   <div class="card">
-    <div class="ch"><div class="ci ci-g">🔬</div><div><div class="ct">Importar arquivo de horários</div><div class="cd">Colunas: Câmara · Compartimento · Réplica · Início · Fim</div></div></div>
+    <div class="ch"><div class="ci ci-g">🌿</div><div><div class="ct">Importar arquivo de horários</div><div class="cd">Colunas: Tratamento · Câmara · Compartimento · Réplica · Início · Fim</div></div></div>
     <div class="dz" id="dz3" onclick="document.getElementById('fi3').click()"
          ondragover="event.preventDefault();this.classList.add('on')"
          ondragleave="this.classList.remove('on')"
          ondrop="onDrop3(event)">
       <span class="dz-icon">📋</span>
       <div class="dz-title">Arquivo de horários (.xlsx ou .csv)</div>
-      <div class="dz-hint">5 colunas: <code>Camara, Compartimento, Replica, Inicio, Fim</code></div>
+      <div class="dz-hint">6 colunas: <code>Tratamento, Camara, Compartimento, Replica, Inicio, Fim</code></div>
     </div>
     <input type="file" id="fi3" accept=".xlsx,.csv" class="h" onchange="onFile3(event)">
     <div id="da3" class="h" style="margin-top:10px"></div>
@@ -468,9 +458,9 @@ td{padding:8px 12px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;fon
   <div class="div">ou cole / adicione manualmente</div>
 
   <div class="card">
-    <div class="ch"><div class="ci ci-o">✏️</div><div><div class="ct">Cole os horários</div><div class="cd">Formato: <code>Câmara, Compartimento, Réplica, HH:MM:SS, HH:MM:SS</code></div></div></div>
+    <div class="ch"><div class="ci ci-o">✏️</div><div><div class="ct">Cole os horários</div><div class="cd">Formato: <code>Tratamento, Câmara, Compartimento, Réplica, HH:MM:SS, HH:MM:SS</code></div></div></div>
     <div class="field">
-      <textarea id="repTxt" rows="5" placeholder="Clara, planta, rep1, 09:20:12, 09:25:42&#10;Clara, planta, rep2, 09:29:12, 09:34:12&#10;Clara, planta, rep3, 09:36:12, 09:41:42"></textarea>
+      <textarea id="repTxt" rows="5" placeholder="IpêAmarelo, Clara, planta, rep1, 09:20:12, 09:25:42&#10;IpêAmarelo, Clara, planta, rep2, 09:29:12, 09:34:12&#10;Cumbaru, Clara, planta, rep1, 10:12:12, 10:17:42"></textarea>
     </div>
     <button class="btn btn-o btn-sm" onclick="parseRepTxt()">Carregar horários colados</button>
   </div>
@@ -738,32 +728,43 @@ function processReps(f){
 function loadRepRows(rows){
   reps=[];
   let loaded=0;
-  // find header row index
   let startIdx=0;
   for(let i=0;i<Math.min(rows.length,5);i++){
     const r=rows[i];
     const j=r.map(x=>String(x||'').toLowerCase()).join('');
-    if(j.includes('camara')||j.includes('replica')||j.includes('inicio')||j.includes('start')){startIdx=i+1;break}
+    if(j.includes('camara')||j.includes('replica')||j.includes('inicio')||j.includes('tratamento')){startIdx=i+1;break}
   }
   for(let i=startIdx;i<rows.length;i++){
     const r=rows[i];
-    if(!r||r.every(x=>!x))continue; // skip empty rows
-    // columns: Camara(0), Compartimento(1), Replica(2), Inicio(3), Fim(4)
-    const sRaw=String(r[3]||'').trim();
-    const eRaw=String(r[4]||'').trim();
+    if(!r||r.every(x=>!x))continue;
+    // Detect if 6-col format (Tratamento, Camara, Comp, Replica, Inicio, Fim)
+    // or 5-col legacy (Camara, Comp, Replica, Inicio, Fim)
+    let tratamento,camara,comp,label,sRaw,eRaw;
+    if(r.length>=6 && t2s(String(r[4]||''))!==null){
+      // 6-col
+      tratamento=String(r[0]||'').trim();
+      camara=String(r[1]||'').trim();
+      comp=String(r[2]||'').trim();
+      label=String(r[3]||'rep'+(loaded+1)).trim();
+      sRaw=String(r[4]||'').trim();
+      eRaw=String(r[5]||'').trim();
+    } else {
+      // 5-col legacy
+      tratamento='';
+      camara=String(r[0]||'').trim();
+      comp=String(r[1]||'').trim();
+      label=String(r[2]||'rep'+(loaded+1)).trim();
+      sRaw=String(r[3]||'').trim();
+      eRaw=String(r[4]||'').trim();
+    }
     const s=t2s(sRaw), e=t2s(eRaw);
     if(s===null||e===null||e<=s)continue;
-    reps.push({
-      camara:String(r[0]||'').trim(),
-      comp:String(r[1]||'').trim(),
-      label:String(r[2]||'rep'+(loaded+1)).trim()||'rep'+(loaded+1),
-      s, e
-    });
+    reps.push({tratamento, camara, comp, label, s, e});
     loaded++;
   }
-  if(!loaded){showAlert('da3','warn','⚠️ Nenhuma linha válida encontrada. Verifique se as colunas são: Camara · Compartimento · Replica · Inicio · Fim');return}
+  if(!loaded){showAlert('da3','warn','⚠️ Nenhuma linha válida. Colunas esperadas: Tratamento · Camara · Compartimento · Replica · Inicio · Fim');return}
   renderRepCards();
-  showAlert('da3','ok',`✅ ${loaded} réplica(s) carregadas do arquivo.`);
+  showAlert('da3','ok',`✅ ${loaded} réplica(s) carregadas. Tratamentos: ${[...new Set(reps.map(r=>r.tratamento).filter(Boolean))].join(', ')||'—'}`);
   document.getElementById('hReps').textContent=reps.length;
 }
 function parseRepTxt(){
@@ -772,9 +773,14 @@ function parseRepTxt(){
   txt.split('\n').forEach(line=>{
     const p=line.split(/[,;\t]/).map(x=>x.trim()).filter(Boolean);
     if(p.length<5)return;
-    const s=t2s(p[3]),e=t2s(p[4]);
+    let tratamento='',camara,comp,label,s,e;
+    if(p.length>=6 && t2s(p[4])!==null){
+      tratamento=p[0];camara=p[1];comp=p[2];label=p[3];s=t2s(p[4]);e=t2s(p[5]);
+    } else {
+      camara=p[0];comp=p[1];label=p[2];s=t2s(p[3]);e=t2s(p[4]);
+    }
     if(s===null||e===null||e<=s)return;
-    reps.push({camara:p[0],comp:p[1],label:p[2],s,e});
+    reps.push({tratamento,camara,comp,label,s,e});
   });
   renderRepCards();
   document.getElementById('hReps').textContent=reps.length;
@@ -782,19 +788,22 @@ function parseRepTxt(){
 function addRep(){
   repCount++;
   const n=repCount;
-  const html=`<div class="rc" id="rc${n}">
+  const h=`<div class="rc" id="rc${n}">
     <div class="rc-hd"><span class="rc-num">Réplica ${reps.length+1}</span><button class="rc-rm" onclick="removeRep(${n})">×</button></div>
     <div class="row2">
-      <div class="field"><label>Câmara</label><input type="text" id="rca${n}" placeholder="Clara"></div>
-      <div class="field"><label>Compartimento</label><input type="text" id="rco${n}" placeholder="planta"></div>
+      <div class="field"><label>🏷 Tratamento</label><input type="text" id="rtr${n}" placeholder="ex: IpêAmarelo, Controle..."></div>
+      <div class="field"><label>⚗️ Câmara</label><input type="text" id="rca${n}" placeholder="Clara"></div>
     </div>
-    <div class="row3">
+    <div class="row2">
+      <div class="field"><label>🌱 Compartimento</label><input type="text" id="rco${n}" placeholder="planta, água, solo..."></div>
       <div class="field"><label>Rótulo</label><input type="text" id="rl${n}" value="rep${n}"></div>
+    </div>
+    <div class="row2">
       <div class="field"><label>Início (HH:MM:SS)</label><input type="text" id="rs${n}" placeholder="09:20:12"></div>
       <div class="field"><label>Fim (HH:MM:SS)</label><input type="text" id="re${n}" placeholder="09:25:42"></div>
     </div>
   </div>`;
-  document.getElementById('repContainer').insertAdjacentHTML('beforeend',html);
+  document.getElementById('repContainer').insertAdjacentHTML('beforeend',h);
 }
 function removeRep(n){document.getElementById('rc'+n)?.remove()}
 
@@ -807,11 +816,14 @@ function renderRepCards(){
     c.insertAdjacentHTML('beforeend',`<div class="rc" id="rc${n}">
       <div class="rc-hd"><span class="rc-num">${r.label}</span><button class="rc-rm" onclick="reps.splice(${i},1);renderRepCards()">×</button></div>
       <div class="row2">
-        <div class="field"><label>Câmara</label><input type="text" id="rca${n}" value="${r.camara}" onchange="reps[${i}].camara=this.value"></div>
-        <div class="field"><label>Compartimento</label><input type="text" id="rco${n}" value="${r.comp}" onchange="reps[${i}].comp=this.value"></div>
+        <div class="field"><label>🏷 Tratamento</label><input type="text" id="rtr${n}" value="${r.tratamento||''}" onchange="reps[${i}].tratamento=this.value"></div>
+        <div class="field"><label>⚗️ Câmara</label><input type="text" id="rca${n}" value="${r.camara}" onchange="reps[${i}].camara=this.value"></div>
       </div>
-      <div class="row3">
+      <div class="row2">
+        <div class="field"><label>🌱 Compartimento</label><input type="text" id="rco${n}" value="${r.comp}" onchange="reps[${i}].comp=this.value"></div>
         <div class="field"><label>Rótulo</label><input type="text" id="rl${n}" value="${r.label}" onchange="reps[${i}].label=this.value"></div>
+      </div>
+      <div class="row2">
         <div class="field"><label>Início</label><input type="text" id="rs${n}" value="${s2hms(r.s)}" onchange="reps[${i}].s=t2s(this.value)"></div>
         <div class="field"><label>Fim</label><input type="text" id="re${n}" value="${s2hms(r.e)}" onchange="reps[${i}].e=t2s(this.value)"></div>
       </div>
@@ -820,7 +832,6 @@ function renderRepCards(){
 }
 
 function collectManualReps(){
-  // collect from manually added cards
   document.querySelectorAll('[id^="rc"]').forEach(el=>{
     const n=el.id.slice(2);
     const s=t2s(document.getElementById('rs'+n)?.value);
@@ -829,8 +840,9 @@ function collectManualReps(){
     const l=document.getElementById('rl'+n)?.value||'rep'+n;
     const ca=document.getElementById('rca'+n)?.value||'';
     const co=document.getElementById('rco'+n)?.value||'';
+    const tr=document.getElementById('rtr'+n)?.value||'';
     if(!reps.find(r=>r.label===l&&r.s===s&&r.e===e)){
-      reps.push({camara:ca,comp:co,label:l,s,e});
+      reps.push({tratamento:tr,camara:ca,comp:co,label:l,s,e});
     }
   });
 }
@@ -852,139 +864,169 @@ function buildPreviews(){
     let r2=0,slope=0,icpt=0,valid=w.length>=3;
     if(valid){const lr=linreg(w.map(d=>d.ts),w.map(d=>d.co2));r2=lr.r2;slope=lr.slope;icpt=lr.icpt}
 
-    const r2cls = r2>=.9?'r2-good':r2>=.8?'r2-warn':'r2-bad';
-    const cardCls= r2>=.9?'good':r2>=.8?'bad':'bad';
-    const checkId='chk'+i;
+    const r2cls=r2>=.9?'r2-good':r2>=.8?'r2-warn':'r2-bad';
+    const cardCls=r2>=.9?'good':r2>=.8?'bad':'bad';
+    // INDEPENDENT checkbox id  — each has its own id, NO radio/group logic
+    const checkId='chk_'+i;
     const canvasId='cv'+i;
-    const isPhoto = slope<0;
-    const dirLabel = isPhoto ? '↓ Fotossíntese' : '↑ Respiração';
-    const dirColor = isPhoto ? 'color:#1a6e3c' : 'color:#c98a2a';
-    const slopeAbs = Math.abs(slope);
-    // slope display: ppm/s and ppm/min for readability
-    const slopePmin = (slope*60).toFixed(4);
+    const isPhoto=slope<0;
+    const dirLabel=isPhoto?'↓ Fotossíntese':'↑ Respiração';
+    const dirColor=isPhoto?'color:#0a5226':'color:#7a4e00';
+    const slopePmin=(slope*60).toFixed(4);
+    const tratLabel=rep.tratamento?`<span style="background:#c2e8cf;color:#0a5226;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700;margin-left:6px">${rep.tratamento}</span>`:'';
 
-    const html=`<div class="pc ${cardCls}" id="pcard${i}">
+    // time range for sliders
+    const allTs=raw.map(d=>d.ts);
+    const tsMin=Math.min(...allTs), tsMax=Math.max(...allTs);
+
+    const html2=`<div class="pc ${cardCls}" id="pcard${i}" style="margin-bottom:18px">
       <div class="pc-hd">
         <div style="flex:1;min-width:0">
-          <div class="pc-title">${rep.label}${rep.camara?' &nbsp;<span style="font-weight:400;font-size:12px;color:var(--muted)">'+rep.camara+(rep.comp?' · '+rep.comp:'')+'</span>':''}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">${s2hms(rep.s)} → ${s2hms(rep.e)} · <strong style="color:var(--ink)">${w.length} pontos</strong></div>
+          <div class="pc-title">${rep.label}${tratLabel}${rep.camara?` <span style="font-weight:400;font-size:12px;color:var(--muted)">${rep.camara}${rep.comp?' · '+rep.comp:''}</span>`:''}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px"><strong id="slbl_s${i}">${s2hms(rep.s)}</strong> → <strong id="slbl_e${i}">${s2hms(rep.e)}</strong> · <strong style="color:var(--ink)">${w.length} pontos</strong></div>
         </div>
-        <div class="pc-meta" style="flex-shrink:0">
-          <span class="r2-badge ${r2cls}">R² = ${r2.toFixed(4)}</span>
-        </div>
+        <span class="r2-badge ${r2cls}" id="r2b${i}">R² = ${r2.toFixed(4)}</span>
       </div>
 
       ${valid?`
-      <!-- SLOPE + R2 STAT BAR -->
-      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-        <div style="background:var(--leafp);border:1px solid #b5dcc5;border-radius:8px;padding:10px 14px;flex:1;min-width:120px">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:3px">Slope (ppm/s)</div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:var(--leaf)">${slope.toFixed(6)}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">${slopePmin} ppm/min</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="background:var(--leafp);border:1.5px solid var(--leaf);border-radius:8px;padding:10px 14px;flex:1;min-width:110px">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:3px">Slope (ppm/s)</div>
+          <div id="slopeval${i}" style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:700;color:var(--leaf)">${slope.toFixed(6)}</div>
+          <div id="slopemin${i}" style="font-size:10px;color:var(--muted);margin-top:2px">${slopePmin} ppm/min</div>
         </div>
-        <div style="background:${r2>=.9?'var(--leafp)':r2>=.8?'var(--goldp)':'#fef2f2'};border:1px solid ${r2>=.9?'#b5dcc5':r2>=.8?'#f0c96a':'#fca5a5'};border-radius:8px;padding:10px 14px;flex:1;min-width:120px">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:3px">R² (ajuste)</div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:${r2>=.9?'var(--leaf)':r2>=.8?'var(--gold)':'var(--red)'}">${r2.toFixed(4)}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">${r2>=.9?'✓ Excelente':r2>=.8?'⚠ Aceitável':'✕ Ruim'}</div>
+        <div style="background:${r2>=.9?'var(--leafp)':r2>=.8?'var(--goldp)':'var(--redp)'};border:1.5px solid ${r2>=.9?'var(--leaf)':r2>=.8?'var(--gold)':'var(--red)'};border-radius:8px;padding:10px 14px;flex:1;min-width:110px">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:3px">R² (ajuste)</div>
+          <div id="r2val${i}" style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:700;color:${r2>=.9?'var(--leaf)':r2>=.8?'var(--gold)':'var(--red)'}">${r2.toFixed(4)}</div>
+          <div id="r2lbl${i}" style="font-size:10px;color:var(--muted);margin-top:2px">${r2>=.9?'✓ Excelente':r2>=.8?'⚠ Aceitável':'✕ Ruim'}</div>
         </div>
-        <div style="background:var(--skyp);border:1px solid #a8ccf4;border-radius:8px;padding:10px 14px;flex:1;min-width:120px">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:3px">Direção</div>
+        <div style="background:var(--skyp);border:1.5px solid var(--sky);border-radius:8px;padding:10px 14px;flex:1;min-width:110px">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:3px">Direção</div>
           <div style="font-size:16px;font-weight:700;${dirColor}">${dirLabel}</div>
-          <div style="font-size:10px;color:var(--muted);margin-top:2px">CO₂ ${isPhoto?'consumido':'liberado'}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">CO₂ ${isPhoto?'consumido 🌱':'liberado 💨'}</div>
         </div>
       </div>
       <canvas id="${canvasId}" height="200"></canvas>
-      `:`<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;background:#fafafa;border-radius:8px">⚠ Apenas ${w.length} ponto(s) nessa janela — mínimo 3 necessário</div>`}
 
-      <div class="pc-actions" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:600;color:var(--leaf)">
-          <input type="checkbox" id="${checkId}" ${r2>=.8&&valid?'checked':''} style="width:20px;height:20px;accent-color:var(--leaf)">
+      <!-- INLINE TIME ADJUSTMENT SLIDERS -->
+      <div style="background:#f0f7f3;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--leaf);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🕐 Ajustar janela de tempo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label style="font-size:10px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">INÍCIO: <span id="sl_s_lbl${i}">${s2hms(rep.s)}</span></label>
+            <input type="range" id="sl_s${i}" min="${tsMin}" max="${tsMax}" value="${rep.s}" step="30"
+              style="width:100%;accent-color:var(--leaf)"
+              oninput="adjSlider(${i},'s',+this.value)">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">FIM: <span id="sl_e_lbl${i}">${s2hms(rep.e)}</span></label>
+            <input type="range" id="sl_e${i}" min="${tsMin}" max="${tsMax}" value="${rep.e}" step="30"
+              style="width:100%;accent-color:var(--gold)"
+              oninput="adjSlider(${i},'e',+this.value)">
+          </div>
+        </div>
+      </div>
+      `:`<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px;background:#f5faf7;border-radius:8px;border:1px solid var(--line)">⚠ Apenas ${w.length} ponto(s) nessa janela — mínimo 3</div>`}
+
+      <!-- INDEPENDENT CHECKBOX — no group, no radio -->
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:2px solid var(--line);flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;font-weight:700;color:var(--leaf)">
+          <input type="checkbox" id="${checkId}" ${r2>=.8&&valid?'checked':''} style="width:22px;height:22px;accent-color:var(--leaf);cursor:pointer">
           Usar no cálculo
         </label>
-        ${!valid?'<span style="font-size:12px;color:var(--red)">⚠ Sem dados suficientes</span>':r2<.8?'<span style="font-size:12px;color:var(--gold)">⚠ R² baixo — considere ajustar os horários</span>':''}
+        ${!valid?'<span style="font-size:12px;color:var(--red);font-weight:600">⚠ Dados insuficientes</span>':r2<.8?'<span style="font-size:12px;color:var(--gold);font-weight:600">⚠ R² baixo — ajuste os horários acima</span>':'<span style="font-size:12px;color:var(--leaf)">✓ Reta aprovada</span>'}
       </div>
     </div>`;
-    container.insertAdjacentHTML('beforeend',html);
+    container.insertAdjacentHTML('beforeend',html2);
 
     if(valid){
-      // slight delay to ensure canvas is in DOM
-      setTimeout(()=>{
-        const canvas=document.getElementById(canvasId);
-        if(!canvas)return;
-        const regY=w.map(d=>slope*d.ts+icpt);
-        // min/max for y axis padding
-        const allY=[...w.map(d=>d.co2),...regY];
-        const yMin=Math.min(...allY)-5, yMax=Math.max(...allY)+5;
-
-        const chart=new Chart(canvas.getContext('2d'),{
-          type:'line',
-          data:{
-            labels:w.map(d=>d.tStr),
-            datasets:[
-              {
-                label:'CO₂ observado (ppm)',
-                data:w.map(d=>d.co2),
-                borderColor:'#1a6e3c',
-                backgroundColor:'rgba(26,110,60,.09)',
-                pointRadius:4,
-                pointHoverRadius:6,
-                pointBackgroundColor:'#1a6e3c',
-                tension:.1,fill:true,borderWidth:2.5,
-                order:2
-              },
-              {
-                label:`Reta: y = ${slope.toFixed(5)}x + ${icpt.toFixed(1)}   R² = ${r2.toFixed(4)}`,
-                data:regY,
-                borderColor:'#c98a2a',
-                backgroundColor:'transparent',
-                borderDash:[7,4],
-                pointRadius:0,
-                tension:0,
-                borderWidth:2.5,
-                order:1
-              }
-            ]
-          },
-          options:{
-            responsive:true,
-            animation:{duration:500},
-            plugins:{
-              legend:{
-                display:true,
-                position:'bottom',
-                labels:{
-                  font:{size:11,family:'IBM Plex Sans'},
-                  boxWidth:14,
-                  padding:12,
-                  color:'#3a4a40'
-                }
-              },
-              tooltip:{
-                callbacks:{
-                  label:ctx=>`${ctx.dataset.label.split(':')[0]}: ${ctx.raw.toFixed(1)} ppm`
-                }
-              }
-            },
-            scales:{
-              y:{
-                title:{display:true,text:'CO₂ (ppm)',font:{size:11,family:'IBM Plex Sans'},color:'#7a8c82'},
-                grid:{color:'rgba(0,0,0,.05)'},
-                ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#7a8c82'},
-                min:yMin, max:yMax
-              },
-              x:{
-                title:{display:true,text:'Horário',font:{size:11,family:'IBM Plex Sans'},color:'#7a8c82'},
-                ticks:{maxTicksLimit:6,font:{size:10,family:'IBM Plex Mono'},color:'#7a8c82'},
-                grid:{display:false}
-              }
-            }
-          }
-        });
-        previewCharts[i]=chart;
-      }, 60*i+20);
+      setTimeout(()=>drawPreviewChart(i),60*i+20);
     }
   });
   goP(4);
+}
+
+// Draw or redraw a preview chart for replica index i
+function drawPreviewChart(i){
+  const rep=reps[i];
+  const w=raw.filter(d=>d.ts>=rep.s&&d.ts<=rep.e);
+  if(w.length<3)return;
+  const{slope,icpt,r2}=linreg(w.map(d=>d.ts),w.map(d=>d.co2));
+  const regY=w.map(d=>slope*d.ts+icpt);
+  const allY=[...w.map(d=>d.co2),...regY];
+  const yMin=Math.min(...allY)-5, yMax=Math.max(...allY)+5;
+
+  const canvas=document.getElementById('cv'+i);
+  if(!canvas)return;
+  if(previewCharts[i])try{previewCharts[i].destroy()}catch(e){}
+
+  previewCharts[i]=new Chart(canvas.getContext('2d'),{
+    type:'line',
+    data:{
+      labels:w.map(d=>d.tStr),
+      datasets:[
+        {label:'CO₂ observado (ppm)',data:w.map(d=>d.co2),
+         borderColor:'#0a5226',backgroundColor:'rgba(10,82,38,.10)',
+         pointRadius:4,pointHoverRadius:7,pointBackgroundColor:'#0a5226',
+         tension:.1,fill:true,borderWidth:2.5,order:2},
+        {label:`Reta: y=${slope.toFixed(5)}x+${icpt.toFixed(1)}  R²=${r2.toFixed(4)}`,
+         data:regY,borderColor:'#9e6500',backgroundColor:'transparent',
+         borderDash:[8,4],pointRadius:0,tension:0,borderWidth:2.5,order:1}
+      ]
+    },
+    options:{
+      responsive:true,animation:{duration:350},
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:11,family:'IBM Plex Sans'},boxWidth:14,padding:10,color:'#1a2e20'}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label.split(':')[0]}: ${ctx.raw.toFixed(1)} ppm`}}
+      },
+      scales:{
+        y:{title:{display:true,text:'CO₂ (ppm)',font:{size:11,family:'IBM Plex Sans'},color:'#3d6047'},
+           grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'},
+           min:yMin,max:yMax},
+        x:{title:{display:true,text:'Horário',font:{size:11,family:'IBM Plex Sans'},color:'#3d6047'},
+           ticks:{maxTicksLimit:6,font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'},grid:{display:false}}
+      }
+    }
+  });
+
+  // Update stats displays
+  const isPhoto=slope<0;
+  if(document.getElementById('slopeval'+i)){
+    document.getElementById('slopeval'+i).textContent=slope.toFixed(6);
+    document.getElementById('slopemin'+i).textContent=(slope*60).toFixed(4)+' ppm/min';
+    const r2el=document.getElementById('r2val'+i);
+    if(r2el){r2el.textContent=r2.toFixed(4);r2el.style.color=r2>=.9?'var(--leaf)':r2>=.8?'var(--gold)':'var(--red)'}
+    if(document.getElementById('r2lbl'+i))document.getElementById('r2lbl'+i).textContent=r2>=.9?'✓ Excelente':r2>=.8?'⚠ Aceitável':'✕ Ruim';
+    if(document.getElementById('r2b'+i)){
+      const b=document.getElementById('r2b'+i);
+      b.textContent='R² = '+r2.toFixed(4);
+      b.className='r2-badge '+(r2>=.9?'r2-good':r2>=.8?'r2-warn':'r2-bad');
+    }
+  }
+  // update point count label
+  const card=document.getElementById('pcard'+i);
+  if(card){
+    const lbl=card.querySelector('.pc-hd div div:nth-child(2)');
+  }
+}
+
+// Handle slider adjustment
+function adjSlider(i,side,val){
+  if(side==='s'){
+    reps[i].s=val;
+    document.getElementById('sl_s_lbl'+i).textContent=s2hms(val);
+    document.getElementById('slbl_s'+i).textContent=s2hms(val);
+  } else {
+    reps[i].e=val;
+    document.getElementById('sl_e_lbl'+i).textContent=s2hms(val);
+    document.getElementById('slbl_e'+i).textContent=s2hms(val);
+  }
+  // update point count
+  const w=raw.filter(d=>d.ts>=reps[i].s&&d.ts<=reps[i].e);
+  const hd=document.querySelector(`#pcard${i} .pc-hd`);
+  if(hd){const d2=hd.querySelector('div div:last-child');if(d2)d2.innerHTML=`<strong>${s2hms(reps[i].s)}</strong> → <strong>${s2hms(reps[i].e)}</strong> · <strong style="color:var(--ink)">${w.length} pontos</strong>`}
+  drawPreviewChart(i);
 }
 
 // ═══════ CALCULATION ═══════
@@ -997,9 +1039,9 @@ function runCalc(){
   const area_m2=Math.PI*(R_cm/100)**2;
   const vol_L=Math.PI*R_cm*R_cm*H_cm/1000;
 
-  // which replicas are checked
+  // which replicas are checked — INDEPENDENT checkboxes
   const selected=reps.filter((_,i)=>{
-    const chk=document.getElementById('chk'+i);
+    const chk=document.getElementById('chk_'+i);
     return chk&&chk.checked;
   });
   if(!selected.length){alert('Selecione ao menos uma réplica para calcular.');return}
@@ -1049,6 +1091,7 @@ function renderResults(results,area_m2,vol_L,R_cm,H_cm){
       <span class="badge bg">👤 ${pAuth}</span>
       <span class="badge bo">📅 ${pDate}</span>
       <span class="badge bb">⚗️ ${cName} · ${cComp}</span>
+    ${[...new Set(valid.map(r=>r.tratamento).filter(Boolean))].map(t=>`<span class="badge bg">🏷 ${t}</span>`).join('')}
       <span class="badge bg">${valid.length} réplica(s) válida(s)</span>
     </div>
   </div>`;
@@ -1078,7 +1121,7 @@ function renderResults(results,area_m2,vol_L,R_cm,H_cm){
     <div class="ch"><div class="ci ci-g">📊</div><div><div class="ct">Resultados por réplica</div></div></div>
     <div class="tw"><table>
       <thead><tr>
-        <th>Réplica</th><th>Câmara</th><th>Intervalo</th><th>n</th>
+        <th>Tratamento</th><th>Réplica</th><th>Câmara</th><th>Intervalo</th><th>n</th>
         <th>CO₂ ini</th><th>CO₂ fim</th>
         <th>Slope (ppm/s)</th><th>Slope (ppm/min)</th><th>R²</th><th>T (°C)</th>
         <th>Rate (mg/L/s)</th><th>Rate (mg/L/d)</th>
@@ -1086,7 +1129,7 @@ function renderResults(results,area_m2,vol_L,R_cm,H_cm){
       </tr></thead><tbody>`;
   results.forEach(r=>{
     if(!r.ok){h+=`<tr><td>${r.label}</td><td colspan="11" style="color:var(--red)">❌ ${r.err}</td></tr>`;return}
-    h+=`<tr><td>${r.label}</td><td>${r.camara||'—'}</td>
+    h+=`<tr><td>${r.tratamento||'—'}</td><td>${r.label}</td><td>${r.camara||'—'}</td>
       <td style="font-size:10px">${s2hms(r.s)}→${s2hms(r.e)}</td>
       <td>${r.n}</td><td>${r.co2s}</td><td>${r.co2e}</td>
       <td>${r.slope.toFixed(7)}</td>
@@ -1175,8 +1218,8 @@ function exportCSV(results){
   const pAuth=document.getElementById('pAuthor').value;
   const lines=['Projeto,Autor,Camara,Compartimento,Replica,Inicio,Fim,n_pts,CO2_ini,CO2_fim,Slope_ppm_s,R2,Temp_C,Area_m2,Volume_L,Rate_mgLs,Rate_mgLd,Flux_mgm2d'];
   results.filter(r=>r.ok).forEach(r=>{
-    lines.push([pName,pAuth,r.camara||'',r.comp||'',r.label,s2hms(r.s),s2hms(r.e),r.n,r.co2s,r.co2e,
-      r.slope.toFixed(8),r.r2.toFixed(6),r.avgT.toFixed(2),r.area_m2.toFixed(8),r.vol_L.toFixed(6),
+    lines.push([pName,pAuth,r.tratamento||'',r.camara||'',r.comp||'',r.label,s2hms(r.s),s2hms(r.e),r.n,r.co2s,r.co2e,
+      r.slope.toFixed(8),(r.slope*60).toFixed(8),r.r2.toFixed(6),r.avgT.toFixed(2),r.area_m2.toFixed(8),r.vol_L.toFixed(6),
       r.rate_mgLs.toExponential(8),r.rate_mgLd.toFixed(8),r.flux.toFixed(6)].join(','));
   });
   const a=document.createElement('a');
