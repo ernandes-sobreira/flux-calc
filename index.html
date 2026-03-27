@@ -426,7 +426,9 @@ function loadRepRows(rows){
     if(r.length>=6&&t2s(String(r[4]||''))!==null){tratamento=String(r[0]||'').trim();camara=String(r[1]||'').trim();comp=String(r[2]||'').trim();label=String(r[3]||'rep'+(loaded+1)).trim();sRaw=String(r[4]||'').trim();eRaw=String(r[5]||'').trim();}
     else{tratamento='';camara=String(r[0]||'').trim();comp=String(r[1]||'').trim();label=String(r[2]||'rep'+(loaded+1)).trim();sRaw=String(r[3]||'').trim();eRaw=String(r[4]||'').trim();}
     const s=t2s(sRaw),e=t2s(eRaw);if(s===null||e===null||e<=s)continue;
-    reps.push({tratamento,camara,comp,label,s,e});loaded++;
+    // optional 7th col = date for multi-date analysis
+    const dataVal=r.length>=7?String(r[6]||'').trim():'';
+    reps.push({tratamento,camara,comp,label,s,e,data:dataVal});loaded++;
   }
   if(!loaded){showA('da3','aw','⚠ Nenhuma linha válida.');return}
   renderRepCards();
@@ -441,7 +443,8 @@ function parseRepTxt(){
     if(p.length>=6&&t2s(p[4])!==null){tratamento=p[0];camara=p[1];comp=p[2];label=p[3];s=t2s(p[4]);e=t2s(p[5]);}
     else{camara=p[0];comp=p[1];label=p[2];s=t2s(p[3]);e=t2s(p[4]);}
     if(s===null||e===null||e<=s)return;
-    reps.push({tratamento,camara,comp,label,s,e});
+    const dataVal2=p.length>=7?p[6].trim():'';
+    reps.push({tratamento,camara,comp,label,s,e,data:dataVal2});
   });
   renderRepCards();document.getElementById('hReps').textContent=reps.length;
 }
@@ -608,6 +611,24 @@ function renderResults(results,area,vol,Rcm,Hcm){
   const TC={};treats.forEach((t,i)=>TC[t]=PAL[i%PAL.length]);
   const avgR2=valid.reduce((a,b)=>a+b.r2,0)/(valid.length||1);
   const avgSlope=valid.reduce((a,b)=>a+b.slope,0)/(valid.length||1);
+
+  // ── Compute CV and outlier flags per treatment group
+  const cvStats={};
+  treats.forEach(t=>{
+    const grp=valid.filter(r=>(r.tratamento||'—')===t);
+    const vals=grp.map(r=>r.flux);
+    const m=vals.reduce((a,b)=>a+b)/vals.length;
+    const sd_=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
+    const cv=m!==0?Math.abs(sd_/m)*100:0;
+    // z-score per replica
+    const zscores=vals.map(v=>sd_>0?Math.abs((v-m)/sd_):0);
+    cvStats[t]={m,sd:sd_,cv,zscores,grp};
+  });
+
+  // ── Check for multi-date
+  const dates=[...new Set(valid.map(r=>r.data||'').filter(Boolean))];
+  const multiDate=dates.length>1;
+
   let h='';
   // Header
   h+='<div class="card" style="border-left:5px solid #052e16;margin-bottom:16px">'+
@@ -617,9 +638,11 @@ function renderResults(results,area,vol,Rcm,Hcm){
     '<span class="badge bdg">👤 '+pAuth+'</span><span class="badge bdo">📅 '+pDate+'</span><span class="badge bdg">n = '+valid.length+' réplicas</span>'+
     treats.map(t=>'<span class="badge" style="background:'+TC[t]+'22;color:'+TC[t]+';border:1.5px solid '+TC[t]+'66;font-weight:700">🏷 '+t+'</span>').join('')+
     '</div></div>';
+
   // Big KPI
   h+='<div class="rhero"><div><div class="rl">Fluxo médio de gases</div><div class="rv">'+mean.toFixed(3)+'</div><div class="ru">mg m⁻² dia⁻¹</div>'+(sd>0?'<div class="rsd">± '+sd.toFixed(3)+' (DP, n='+fluxes.length+')</div>':'')+'</div>'+
     '<div class="rbadge"><div class="n">'+valid.length+'</div><div class="l">réplicas</div></div></div>';
+
   // KPI row
   h+='<div class="krow">'+
     '<div class="kpi" style="border-top:4px solid #052e16"><div class="kl">Slope médio</div><div class="kv vg">'+avgSlope.toFixed(5)+'</div><div class="ku">ppm s⁻¹</div></div>'+
@@ -627,43 +650,98 @@ function renderResults(results,area,vol,Rcm,Hcm){
     '<div class="kpi" style="border-top:4px solid #052370"><div class="kl">Volume câmara</div><div class="kv" style="color:#052370">'+vol.toFixed(4)+'</div><div class="ku">litros</div></div>'+
     '<div class="kpi" style="border-top:4px solid #4a1070"><div class="kl">Tratamentos</div><div class="kv" style="color:#4a1070">'+treats.length+'</div><div class="ku">'+valid.length+' réplicas</div></div>'+
     '</div>';
-  // Charts
-  h+='<div style="margin-bottom:20px">'+
-    '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a1e;margin-bottom:14px;padding-bottom:8px;border-bottom:3px solid #5db874">📊 Análise Estatística</div>'+
-    '<div class="cc" style="margin-bottom:14px">'+
-      '<div class="cc-hd"><div><div class="cct">Violin + Jitter — fluxo por réplica</div><div class="ccs">Cada ponto = uma réplica · linha horizontal = mediana</div></div>'+
-      '<button class="btn bg bsm" onclick="dlChart(\'chV\',\'violin\')">⬇ PNG</button></div>'+
-      '<canvas id="chV" height="280"></canvas></div>'+
-    '<div class="cc" style="margin-bottom:14px">'+
-      '<div class="cc-hd"><div><div class="cct">Média ± Desvio Padrão por tratamento</div><div class="ccs">Barras de erro = DP · ○ = média · n indicado abaixo</div></div>'+
-      '<button class="btn bg bsm" onclick="dlChart(\'chM\',\'mean_dp\')">⬇ PNG</button></div>'+
-      '<canvas id="chM" height="260"></canvas></div>'+
-    '</div>';
-  // Table
+
+  // ── CV ALERT PANEL
+  const highCV=treats.filter(t=>cvStats[t].cv>30);
+  const outliers=[];
+  treats.forEach(t=>{cvStats[t].grp.forEach((r,i)=>{if(cvStats[t].zscores[i]>1.5)outliers.push({t,r,z:cvStats[t].zscores[i]});})});
+  if(highCV.length||outliers.length){
+    h+='<div style="background:#fff8e1;border:2.5px solid #e6a817;border-radius:10px;padding:16px 18px;margin-bottom:16px">'+
+      '<div style="font-size:13px;font-weight:800;color:#5a3600;margin-bottom:10px">⚠️ Alertas de qualidade das réplicas</div>';
+    highCV.forEach(t=>{
+      const c=cvStats[t];
+      h+='<div style="margin-bottom:8px;padding:10px 14px;background:#fff3cd;border-radius:8px;border-left:4px solid #e6a817">'+
+        '<span style="font-weight:700;color:'+TC[t]+'">'+t+'</span>'+
+        ' — CV = <strong>'+c.cv.toFixed(1)+'%</strong> (> 30%): variabilidade alta entre réplicas.'+
+        '<div style="font-size:11px;color:#5a3600;margin-top:4px">Média = '+c.m.toFixed(4)+' · DP = '+c.sd.toFixed(4)+' mg/m²/d</div></div>';
+    });
+    outliers.forEach(({t,r,z})=>{
+      h+='<div style="margin-bottom:8px;padding:10px 14px;background:#fde8e8;border-radius:8px;border-left:4px solid #c0392b">'+
+        '🔴 <span style="font-weight:700;color:'+TC[t]+'">'+t+'</span>'+
+        ' · réplica <strong>'+r.label+'</strong>'+
+        ' — Z-score = '+z.toFixed(2)+' (> 1.5 DP da média do grupo).'+
+        ' Fluxo = '+r.flux.toFixed(4)+' vs média = '+cvStats[t].m.toFixed(4)+' mg/m²/d.</div>';
+    });
+    h+='<div style="font-size:11px;color:#5a3600;margin-top:6px">Critérios: CV > 30% indica variabilidade alta · Z-score > 1.5 indica réplica discrepante</div>';
+    h+='</div>';
+  }
+
+  // ── CHARTS SECTION HEADER
+  h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a1e;margin-bottom:14px;padding-bottom:8px;border-bottom:3px solid #5db874">📊 Análise Estatística</div>';
+
+  // ── VIOLIN + JITTER
+  h+='<div class="cc" style="margin-bottom:14px">'+
+    '<div class="cc-hd"><div><div class="cct">Violin + Jitter — fluxo por réplica</div>'+
+    '<div class="ccs">Cada ponto = uma réplica · linha = mediana · 🔴 Z > 1.5 = discrepante</div></div>'+
+    '<button class="btn bg bsm" onclick="dlChart(\'chV\',\'violin\')">⬇ PNG</button></div>'+
+    '<canvas id="chV" height="320"></canvas></div>';
+
+  // ── MEAN ± SD
+  h+='<div class="cc" style="margin-bottom:14px">'+
+    '<div class="cc-hd"><div><div class="cct">Média ± Desvio Padrão por tratamento</div>'+
+    '<div class="ccs">Barras de erro = DP · CV indicado · ○ = média · n abaixo</div></div>'+
+    '<button class="btn bg bsm" onclick="dlChart(\'chM\',\'mean_dp\')">⬇ PNG</button></div>'+
+    '<canvas id="chM" height="340"></canvas></div>';
+
+  // ── TIME SERIES (only if multi-date)
+  if(multiDate){
+    h+='<div class="cc" style="margin-bottom:14px">'+
+      '<div class="cc-hd"><div><div class="cct">📅 Série temporal — fluxo por data</div>'+
+      '<div class="ccs">Cada linha = um tratamento · eixo X = data de coleta</div></div>'+
+      '<button class="btn bg bsm" onclick="dlChart(\'chDL\',\'serie_temporal\')">⬇ PNG</button></div>'+
+      '<canvas id="chDL" height="260"></canvas></div>';
+  }
+
+  // ── TABLE with CV column
   h+='<div class="card" style="margin-bottom:20px">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">'+
     '<div class="ct">📋 Resultados por réplica</div>'+
     '<button class="btn bsm bp" onclick="exportCSV()">⬇ Exportar CSV</button></div>'+
-    '<div class="tw"><table><thead><tr><th>Tratamento</th><th>Réplica</th><th>Câmara</th><th>n pts</th>'+
-    '<th>Slope (ppm/s)</th><th>Slope (ppm/min)</th><th>R²</th><th>T (°C)</th><th>Fluxo (mg/m²/d)</th></tr></thead><tbody>';
+    '<div class="tw"><table><thead><tr>'+
+    '<th>Tratamento</th><th>Réplica</th><th>Câmara</th><th>n pts</th>'+
+    '<th>Slope (ppm/s)</th><th>R²</th><th>T (°C)</th>'+
+    '<th>Fluxo (mg/m²/d)</th><th>Z-score</th><th>Status</th>'+
+    '</tr></thead><tbody>';
   treats.forEach(t=>{
     const grp=valid.filter(r=>(r.tratamento||'—')===t);
+    const cv=cvStats[t].cv;
     grp.forEach((r,ri)=>{
-      h+='<tr style="'+(ri===0?'border-top:3px solid '+TC[t]:'')+'">'+'<td style="font-weight:700;color:'+TC[t]+'">'+(ri===0?r.tratamento||'—':'')+'</td>'+
-        '<td>'+r.label+'</td><td>'+(r.camara||'—')+'</td><td>'+r.n+'</td>'+
+      const zi=cvStats[t].zscores[ri];
+      const isOut=zi>1.5;
+      h+='<tr style="'+(ri===0?'border-top:3px solid '+TC[t]:'')+';'+(isOut?'background:#fff0f0':'')+'">'+
+        '<td style="font-weight:700;color:'+TC[t]+'">'+(ri===0?r.tratamento||'—':'')+'</td>'+
+        '<td style="font-weight:600">'+r.label+'</td>'+
+        '<td>'+(r.camara||'—')+'</td><td>'+r.n+'</td>'+
         '<td style="font-family:\'IBM Plex Mono\',monospace">'+r.slope.toFixed(6)+'</td>'+
-        '<td style="font-family:\'IBM Plex Mono\',monospace">'+(r.slope*60).toFixed(4)+'</td>'+
         '<td class="'+(r.r2>=.9?'tg':r.r2>=.8?'to':'')+'">'+r.r2.toFixed(4)+'</td>'+
         '<td>'+r.avgT.toFixed(1)+'</td>'+
-        '<td class="tg" style="font-weight:700">'+r.flux.toFixed(4)+'</td></tr>';
+        '<td class="tg" style="font-weight:700">'+r.flux.toFixed(4)+'</td>'+
+        '<td style="font-family:\'IBM Plex Mono\',monospace;color:'+(isOut?'#7a0f0f':'#052e16')+';font-weight:700">'+zi.toFixed(2)+'</td>'+
+        '<td>'+(isOut?'<span style="color:#7a0f0f;font-weight:700">🔴 Discrepante</span>':'<span style="color:#052e16;font-weight:600">✓ OK</span>')+'</td>'+
+        '</tr>';
     });
     const gf=grp.map(r=>r.flux);
     const gm=gf.reduce((a,b)=>a+b)/gf.length;
     const gsd=gf.length>1?Math.sqrt(gf.map(v=>(v-gm)**2).reduce((a,b)=>a+b)/(gf.length-1)):0;
-    h+='<tr style="background:'+TC[t]+'18;font-style:italic"><td colspan="8" style="font-size:11px;color:'+TC[t]+';font-weight:700">Média '+t+' (n='+gf.length+')</td><td style="font-weight:700;color:'+TC[t]+'">'+gm.toFixed(4)+' ± '+gsd.toFixed(4)+'</td></tr>';
+    h+='<tr style="background:'+TC[t]+'15;font-style:italic">'+
+      '<td colspan="7" style="font-size:11px;color:'+TC[t]+';font-weight:700">'+
+      'Média '+t+' (n='+gf.length+') &nbsp;·&nbsp; CV = '+(cv.toFixed(1))+'%'+(cv>30?' ⚠️':'  ✓')+'</td>'+
+      '<td style="font-weight:700;color:'+TC[t]+'">'+gm.toFixed(4)+' ± '+gsd.toFixed(4)+'</td>'+
+      '<td colspan="2"></td></tr>';
   });
-  results.filter(r=>!r.ok).forEach(r=>{h+='<tr><td>'+(r.tratamento||'—')+'</td><td colspan="8" style="color:#5a0a0a;font-weight:600">❌ '+r.label+' — '+r.err+'</td></tr>';});
+  results.filter(r=>!r.ok).forEach(r=>{h+='<tr><td>'+(r.tratamento||'—')+'</td><td colspan="9" style="color:#5a0a0a;font-weight:600">❌ '+r.label+' — '+r.err+'</td></tr>';});
   h+='</tbody></table></div></div>';
+
   // Step by step
   if(valid.length){
     const ex=valid[0];
@@ -678,66 +756,188 @@ function renderResults(results,area,vol,Rcm,Hcm){
       '<span class="fn">7. Fluxo</span>      = rate_d × V / A = <span class="fr">'+ex.flux.toFixed(4)+' mg m⁻² d⁻¹</span>'+
       '</div></details>';
   }
+
   h+='<div class="brow" style="border:none;padding:0;margin-bottom:40px">'+
     '<button class="btn bp" onclick="exportCSV()">⬇ CSV completo</button>'+
     '<button class="btn bg" onclick="goP(4)">← Revisar retas</button>'+
     '<button class="btn bg" onclick="goP(3)">↩ Ajustar réplicas</button></div>';
+
   document.getElementById('resContent').innerHTML=h;
-  // Draw charts
+
+  // ── DRAW CHARTS
   setTimeout(()=>{
     const PAL2=['#052e16','#4a2e00','#052370','#4a1070','#5a0a0a','#0a3d3d'];
     const TC2={};treats.forEach((t,i)=>TC2[t]=PAL2[i%PAL2.length]);
-    // VIOLIN+JITTER
+
+    // ── 1. VIOLIN + JITTER with outlier highlight
     const vcv=document.getElementById('chV');
     if(vcv){
       const ds=[];
+      const allFlux=valid.map(r=>r.flux);
+      const fluxMin=Math.min(...allFlux),fluxMax=Math.max(...allFlux);
+      const fluxRange=Math.abs(fluxMax-fluxMin)||1;
+      const yPad=fluxRange*.18;
+
+      // Outlier label plugin
+      const outlierPlugin={id:'olbl',afterDraw(chart){
+        const{ctx,scales:{x,y}}=chart;
+        ctx.save();
+        treats.forEach((t,ti)=>{
+          const pts=valid.filter(r=>(r.tratamento||'—')===t);
+          const zs=cvStats[t].zscores;
+          pts.forEach((p,pi)=>{
+            if(zs[pi]>1.5){
+              const xp=x.getPixelForValue(ti+(Math.random()-.5)*.42);
+              const yp=y.getPixelForValue(p.flux);
+              // Warning badge
+              ctx.fillStyle='#c0392b';
+              ctx.font='bold 11px IBM Plex Sans,sans-serif';
+              ctx.textAlign='center';
+              ctx.fillText('⚠ Z='+zs[pi].toFixed(1),xp, yp-16);
+            }
+          });
+        });
+        ctx.restore();
+      }};
+
       treats.forEach((t,ti)=>{
         const pts=valid.filter(r=>(r.tratamento||'—')===t);
+        const zs=cvStats[t].zscores;
         const flxs=pts.map(r=>r.flux).sort((a,b)=>a-b);
         const med=flxs[Math.floor(flxs.length/2)];
-        ds.push({type:'scatter',label:t,data:pts.map(p=>({x:ti+(Math.random()-.5)*.45,y:p.flux,lbl:p.label})),backgroundColor:TC2[t]+'cc',borderColor:TC2[t],pointRadius:12,pointHoverRadius:15,borderWidth:2.5,order:2});
-        ds.push({type:'line',label:'',data:[{x:ti-.35,y:med},{x:ti+.35,y:med}],borderColor:TC2[t],backgroundColor:'transparent',borderWidth:4,pointRadius:0,tension:0,order:1});
+        const gm=pts.map(r=>r.flux).reduce((a,b)=>a+b)/pts.length;
+
+        // Points — red if outlier
+        ds.push({type:'scatter',label:t,
+          data:pts.map((p,pi)=>({x:ti+(Math.random()-.5)*.42,y:p.flux,lbl:p.label,z:zs[pi]})),
+          backgroundColor:pts.map((p,pi)=>zs[pi]>1.5?'rgba(192,57,43,.85)':TC2[t]+'cc'),
+          borderColor:pts.map((p,pi)=>zs[pi]>1.5?'#7a0f0f':TC2[t]),
+          pointRadius:pts.map((p,pi)=>zs[pi]>1.5?14:11),
+          pointHoverRadius:16,borderWidth:2.5,order:2});
+        // Median line
+        ds.push({type:'line',label:'',data:[{x:ti-.36,y:med},{x:ti+.36,y:med}],
+          borderColor:TC2[t],backgroundColor:'transparent',borderWidth:4,pointRadius:0,tension:0,order:1});
+        // Mean dot (white)
+        ds.push({type:'scatter',label:'',data:[{x:ti,y:gm}],
+          backgroundColor:'#fff',borderColor:TC2[t],pointRadius:7,borderWidth:2.5,order:0});
       });
+
       new Chart(vcv.getContext('2d'),{type:'scatter',data:{datasets:ds},
+        plugins:[outlierPlugin],
         options:{responsive:true,plugins:{
-          legend:{display:true,position:'bottom',labels:{filter:item=>item.text!=='',font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:14,color:'#020c04'}},
-          tooltip:{callbacks:{label:ctx=>ctx.raw.lbl?ctx.dataset.label+' · '+ctx.raw.lbl+': '+ctx.raw.y.toFixed(3)+' mg/m²/d':null,filter:item=>item.raw&&item.raw.lbl}}
+          legend:{display:true,position:'bottom',
+            labels:{filter:item=>item.text!=='',font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:14,color:'#020c04'}},
+          tooltip:{callbacks:{
+            label:ctx=>{
+              if(!ctx.raw||!ctx.raw.lbl)return null;
+              const z=ctx.raw.z||0;
+              const flag=z>1.5?' 🔴 OUTLIER Z='+z.toFixed(2):'';
+              return ctx.dataset.label+' · '+ctx.raw.lbl+': '+ctx.raw.y.toFixed(3)+' mg/m²/d'+flag;
+            },
+            filter:item=>item.raw&&item.raw.lbl
+          }}
         },
         scales:{
-          x:{type:'linear',min:-.7,max:treats.length-.3,ticks:{stepSize:1,callback:(_,i)=>treats[i]||'',font:{size:12,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:20},grid:{display:false},border:{display:false}},
-          y:{title:{display:true,text:'Fluxo (mg CO₂ m⁻² d⁻¹)',font:{size:12,family:'IBM Plex Sans'},color:'#1a3a1e'},grid:{color:'rgba(0,0,0,.08)'},ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#1a3a1e'},border:{display:false}}
+          x:{type:'linear',min:-.7,max:treats.length-.3,
+            ticks:{stepSize:1,
+              callback:(_,i)=>{
+                const t=treats[i]||'';
+                // break long names at space
+                return t.length>12?t.split(' '):t;
+              },
+              font:{size:12,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:0},
+            grid:{display:false},border:{display:false}},
+          y:{title:{display:true,text:'Fluxo (mg CO₂ m⁻² d⁻¹)',font:{size:12,family:'IBM Plex Sans'},color:'#1a3a1e'},
+            grid:{color:'rgba(0,0,0,.07)'},ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#1a3a1e'},border:{display:false},
+            min:fluxMin-yPad*1.5,max:fluxMax+yPad}
         }}
       });
     }
-    // MEAN±SD
+
+    // ── 2. MEAN ± SD — fix Y axis to include error bars
     const mcv=document.getElementById('chM');
     if(mcv){
       const stats=treats.map(t=>{
         const vals=valid.filter(r=>(r.tratamento||'—')===t).map(r=>r.flux);
         const m=vals.reduce((a,b)=>a+b)/vals.length;
         const sd_=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
-        return{t,m,sd:sd_,n:vals.length};
+        const cv=m!==0?Math.abs(sd_/m)*100:0;
+        return{t,m,sd:sd_,cv,n:vals.length};
       });
+      // Y axis must cover: individual points + mean±SD + label space
+      const allIndividual=valid.map(r=>r.flux);
+      const allM=stats.map(s=>s.m),allSD=stats.map(s=>s.sd);
+      const yMinData=Math.min(Math.min(...allIndividual),...allM.map((m,i)=>m-allSD[i]));
+      const yMaxData=Math.max(Math.max(...allIndividual),...allM.map((m,i)=>m+allSD[i]));
+      const yRange=Math.abs(yMaxData-yMinData)||1;
+      // Extra space: 25% below for n= labels, 15% above
+      const yMin=yMinData-yRange*.28;
+      const yMax=yMaxData+yRange*.15;
+      const yPad2=0; // already included above
       const ep={id:'ep',afterDraw(chart){
         const{ctx,scales:{x,y}}=chart;
         stats.forEach((s,i)=>{
           const xp=x.getPixelForValue(i),yt=y.getPixelForValue(s.m+s.sd),yb=y.getPixelForValue(s.m-s.sd),ym=y.getPixelForValue(s.m);
-          ctx.save();ctx.strokeStyle=TC2[s.t];ctx.lineWidth=3;
-          ctx.beginPath();ctx.moveTo(xp,yt);ctx.lineTo(xp,yb);ctx.stroke();
-          ctx.beginPath();ctx.moveTo(xp-12,yt);ctx.lineTo(xp+12,yt);ctx.stroke();
-          ctx.beginPath();ctx.moveTo(xp-12,yb);ctx.lineTo(xp+12,yb);ctx.stroke();
-          ctx.beginPath();ctx.arc(xp,ym,6,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle=TC2[s.t];ctx.lineWidth=2.5;ctx.stroke();
-          ctx.fillStyle=TC2[s.t];ctx.font='bold 12px IBM Plex Sans,sans-serif';ctx.textAlign='center';ctx.fillText('n='+s.n,xp,yb+20);
+          // clip to chart area
+          const ca=chart.chartArea;
+          const ytc=Math.max(yt,ca.top),ybc=Math.min(yb,ca.bottom);
+          ctx.save();ctx.strokeStyle=TC2[s.t];ctx.lineWidth=3;ctx.setLineDash([]);
+          ctx.beginPath();ctx.moveTo(xp,ytc);ctx.lineTo(xp,ybc);ctx.stroke();
+          if(ytc>ca.top){ctx.beginPath();ctx.moveTo(xp-12,ytc);ctx.lineTo(xp+12,ytc);ctx.stroke();}
+          if(ybc<ca.bottom){ctx.beginPath();ctx.moveTo(xp-12,ybc);ctx.lineTo(xp+12,ybc);ctx.stroke();}
+          // mean dot
+          ctx.beginPath();ctx.arc(xp,ym,7,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle=TC2[s.t];ctx.lineWidth=2.5;ctx.stroke();
+          // n label
+          ctx.fillStyle=TC2[s.t];ctx.font='bold 12px IBM Plex Sans,sans-serif';ctx.textAlign='center';
+          // n= label: always draw below the error bar, clamped to chart bottom
+          const nLabelY=Math.min(ybc+20, ca.bottom-6);
+          ctx.fillText('n='+s.n,xp,nLabelY);
+          // CV label inside bar
+          const cvLabel='CV '+s.cv.toFixed(0)+'%';
+          const barTop=y.getPixelForValue(Math.max(s.m,0));
+          const barBot=y.getPixelForValue(Math.min(s.m,0));
+          const barH=Math.abs(barTop-barBot);
+          if(barH>30){ctx.fillStyle='rgba(255,255,255,.9)';ctx.font='bold 11px IBM Plex Sans,sans-serif';ctx.fillText(cvLabel,xp,barBot-14+barH*.4);}
           ctx.restore();
         });
       }};
       new Chart(mcv.getContext('2d'),{type:'bar',
-        data:{labels:stats.map(s=>s.t),datasets:[{label:'Fluxo médio',data:stats.map(s=>s.m),backgroundColor:treats.map(t=>TC2[t]+'99'),borderColor:treats.map(t=>TC2[t]),borderWidth:2.5,borderRadius:7,borderSkipped:false}]},
+        data:{labels:stats.map(s=>s.t),datasets:[{label:'Fluxo médio',data:stats.map(s=>s.m),
+          backgroundColor:treats.map(t=>TC2[t]+'aa'),borderColor:treats.map(t=>TC2[t]),
+          borderWidth:2.5,borderRadius:6,borderSkipped:false}]},
         plugins:[ep],
-        options:{responsive:true,layout:{padding:{bottom:8,top:24}},
-          plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const s=stats[ctx.dataIndex];return s.m.toFixed(3)+' ± '+s.sd.toFixed(3)+' (DP) · n='+s.n}}}},
+        options:{responsive:true,layout:{padding:{bottom:30,top:32,left:8,right:8}},
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const s=stats[ctx.dataIndex];return s.m.toFixed(3)+' ± '+s.sd.toFixed(3)+' (DP) · CV='+s.cv.toFixed(1)+'% · n='+s.n}}}},
           scales:{
-            x:{grid:{display:false},border:{display:false},ticks:{font:{size:13,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:20}},
+            x:{grid:{display:false},border:{display:false},
+               ticks:{font:{size:12,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:0,padding:8}},
+            y:{title:{display:true,text:'Fluxo (mg m⁻² d⁻¹)',font:{size:12},color:'#1a3a1e'},
+               grid:{color:'rgba(0,0,0,.08)'},border:{display:false},
+               ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#1a3a1e'},
+               min:yMin,max:yMax}
+          }
+        }
+      });
+    }
+
+    // ── 3. TIME SERIES (multi-date)
+    const dlcv=document.getElementById('chDL');
+    if(dlcv&&multiDate){
+      const allDates=[...new Set(valid.map(r=>r.data||'').filter(Boolean))].sort();
+      const tlDs=treats.map(t=>{
+        const pts=valid.filter(r=>(r.tratamento||'—')===t);
+        return{label:t,
+          data:allDates.map(d=>{const dp=pts.filter(r=>r.data===d);return dp.length?dp.reduce((a,b)=>a+b.flux,0)/dp.length:null;}),
+          borderColor:TC2[t],backgroundColor:TC2[t]+'28',
+          pointRadius:8,pointHoverRadius:11,tension:.3,fill:false,borderWidth:2.5,
+          pointBackgroundColor:TC2[t]};
+      });
+      new Chart(dlcv.getContext('2d'),{type:'line',
+        data:{labels:allDates,datasets:tlDs},
+        options:{responsive:true,
+          plugins:{legend:{display:true,position:'bottom',labels:{font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:12,color:'#020c04'}}},
+          scales:{
+            x:{title:{display:true,text:'Data de coleta',font:{size:12},color:'#1a3a1e'},grid:{display:false},border:{display:false},ticks:{font:{size:11,family:'IBM Plex Sans',weight:'600'},color:'#020c04'}},
             y:{title:{display:true,text:'Fluxo (mg m⁻² d⁻¹)',font:{size:12},color:'#1a3a1e'},grid:{color:'rgba(0,0,0,.08)'},border:{display:false},ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#1a3a1e'}}
           }
         }
