@@ -745,7 +745,7 @@ function renderResults(results,area,vol,Rcm,Hcm){
   // Step by step
   if(valid.length){
     const ex=valid[0];
-    h+='<details class="card" style="margin-bottom:20px"><summary>🧮 Passo a passo — '+ex.label+'</summary>'+
+    h+='<details class="card" style="margin-bottom:20px"><summary>🧮 Como foi calculado o fluxo? (exemplo: '+ex.label+(ex.tratamento?' · '+ex.tratamento:'')+') — clique para expandir</summary>'+
       '<div class="formula" style="margin-top:14px">'+
       '<span class="fn">1. Regressão</span>  slope = <span class="fv">'+ex.slope.toFixed(8)+'</span> ppm/s  ·  R² = <span class="fv">'+ex.r2.toFixed(4)+'</span>\n'+
       '<span class="fn">2. Área</span>       A = π × ('+Rcm+'/100)² = <span class="fv">'+ex.area_m2.toFixed(8)+'</span> m²\n'+
@@ -778,27 +778,8 @@ function renderResults(results,area,vol,Rcm,Hcm){
       const fluxRange=Math.abs(fluxMax-fluxMin)||1;
       const yPad=fluxRange*.18;
 
-      // Outlier label plugin
-      const outlierPlugin={id:'olbl',afterDraw(chart){
-        const{ctx,scales:{x,y}}=chart;
-        ctx.save();
-        treats.forEach((t,ti)=>{
-          const pts=valid.filter(r=>(r.tratamento||'—')===t);
-          const zs=cvStats[t].zscores;
-          pts.forEach((p,pi)=>{
-            if(zs[pi]>1.5){
-              const xp=x.getPixelForValue(ti+(Math.random()-.5)*.42);
-              const yp=y.getPixelForValue(p.flux);
-              // Warning badge
-              ctx.fillStyle='#c0392b';
-              ctx.font='bold 11px IBM Plex Sans,sans-serif';
-              ctx.textAlign='center';
-              ctx.fillText('⚠ Z='+zs[pi].toFixed(1),xp, yp-16);
-            }
-          });
-        });
-        ctx.restore();
-      }};
+      // Store jitter positions to reuse in plugin
+      const jitterPositions=[];
 
       treats.forEach((t,ti)=>{
         const pts=valid.filter(r=>(r.tratamento||'—')===t);
@@ -807,26 +788,62 @@ function renderResults(results,area,vol,Rcm,Hcm){
         const med=flxs[Math.floor(flxs.length/2)];
         const gm=pts.map(r=>r.flux).reduce((a,b)=>a+b)/pts.length;
 
+        // Generate jitter x once and store
+        const jx=pts.map(()=>ti+(Math.random()-.5)*.42);
+        pts.forEach((p,pi)=>{
+          jitterPositions.push({x:jx[pi],y:p.flux,z:zs[pi],lbl:p.label,t});
+        });
+
         // Points — red if outlier
         ds.push({type:'scatter',label:t,
-          data:pts.map((p,pi)=>({x:ti+(Math.random()-.5)*.42,y:p.flux,lbl:p.label,z:zs[pi]})),
-          backgroundColor:pts.map((p,pi)=>zs[pi]>1.5?'rgba(192,57,43,.85)':TC2[t]+'cc'),
+          data:pts.map((p,pi)=>({x:jx[pi],y:p.flux,lbl:p.label,z:zs[pi]})),
+          backgroundColor:pts.map((p,pi)=>zs[pi]>1.5?'rgba(192,57,43,.9)':TC2[t]+'cc'),
           borderColor:pts.map((p,pi)=>zs[pi]>1.5?'#7a0f0f':TC2[t]),
           pointRadius:pts.map((p,pi)=>zs[pi]>1.5?14:11),
           pointHoverRadius:16,borderWidth:2.5,order:2});
         // Median line
-        ds.push({type:'line',label:'',data:[{x:ti-.36,y:med},{x:ti+.36,y:med}],
+        ds.push({type:'line',label:'— Mediana',data:[{x:ti-.36,y:med},{x:ti+.36,y:med}],
           borderColor:TC2[t],backgroundColor:'transparent',borderWidth:4,pointRadius:0,tension:0,order:1});
-        // Mean dot (white)
-        ds.push({type:'scatter',label:'',data:[{x:ti,y:gm}],
+        // Mean dot (white circle)
+        ds.push({type:'scatter',label:'○ Média',data:[{x:ti,y:gm}],
           backgroundColor:'#fff',borderColor:TC2[t],pointRadius:7,borderWidth:2.5,order:0});
       });
+
+      // Outlier label plugin — uses stored positions
+      const outlierPlugin={id:'olbl',afterDraw(chart){
+        const{ctx,scales:{x,y}}=chart;
+        ctx.save();
+        jitterPositions.filter(p=>p.z>1.5).forEach(p=>{
+          const xp=x.getPixelForValue(p.x);
+          const yp=y.getPixelForValue(p.y);
+          ctx.fillStyle='#c0392b';
+          ctx.font='bold 11px IBM Plex Sans,sans-serif';
+          ctx.textAlign='center';
+          ctx.fillText('⚠ Z='+p.z.toFixed(1), xp, yp-16);
+        });
+        ctx.restore();
+      }};
 
       new Chart(vcv.getContext('2d'),{type:'scatter',data:{datasets:ds},
         plugins:[outlierPlugin],
         options:{responsive:true,plugins:{
           legend:{display:true,position:'bottom',
-            labels:{filter:item=>item.text!=='',font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:14,color:'#020c04'}},
+            labels:{filter:(item,data)=>{
+              // show each treatment once, plus ○ Média and — Mediana once each
+              const seen=new Set();
+              let mCount=0,medCount=0;
+              return data.datasets.every((ds,i)=>{
+                if(i===item.datasetIndex){
+                  if(item.text===''||item.text===undefined)return false;
+                  if(item.text==='○ Média'){mCount++;return mCount<=1;}
+                  if(item.text==='— Mediana'){medCount++;return medCount<=1;}
+                  if(seen.has(item.text))return false;
+                  seen.add(item.text);return true;
+                }
+                if(ds.label===item.text){if(ds.label==='— Mediana'){medCount++;}if(ds.label==='○ Média'){mCount++;}}
+                return true;
+              });
+            },font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:14,color:'#020c04'}},
           tooltip:{callbacks:{
             label:ctx=>{
               if(!ctx.raw||!ctx.raw.lbl)return null;
@@ -842,10 +859,9 @@ function renderResults(results,area,vol,Rcm,Hcm){
             ticks:{stepSize:1,
               callback:(_,i)=>{
                 const t=treats[i]||'';
-                // break long names at space
-                return t.length>12?t.split(' '):t;
+                return t.length>6?t.slice(0,5)+'…':t;
               },
-              font:{size:12,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:0},
+              font:{size:13,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:0},
             grid:{display:false},border:{display:false}},
           y:{title:{display:true,text:'Fluxo (mg CO₂ m⁻² d⁻¹)',font:{size:12,family:'IBM Plex Sans'},color:'#1a3a1e'},
             grid:{color:'rgba(0,0,0,.07)'},ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#1a3a1e'},border:{display:false},
@@ -910,7 +926,12 @@ function renderResults(results,area,vol,Rcm,Hcm){
           plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const s=stats[ctx.dataIndex];return s.m.toFixed(3)+' ± '+s.sd.toFixed(3)+' (DP) · CV='+s.cv.toFixed(1)+'% · n='+s.n}}}},
           scales:{
             x:{grid:{display:false},border:{display:false},
-               ticks:{font:{size:12,family:'IBM Plex Sans',weight:'700'},color:'#020c04',maxRotation:0,padding:8}},
+               ticks:{font:{size:11,family:'IBM Plex Sans',weight:'700'},color:'#020c04',
+                 maxRotation:0,padding:8,
+                 callback:(val,i)=>{
+                   const t=stats[i]?stats[i].t:'';
+                   return t.length>8?t.slice(0,7)+'…':t;
+                 }}},
             y:{title:{display:true,text:'Fluxo (mg m⁻² d⁻¹)',font:{size:12},color:'#1a3a1e'},
                grid:{color:'rgba(0,0,0,.08)'},border:{display:false},
                ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#1a3a1e'},
