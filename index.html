@@ -794,56 +794,28 @@ function renderResults(results,area,vol,Rcm,Hcm){
           jitterPositions.push({x:jx[pi],y:p.flux,z:zs[pi],lbl:p.label,t});
         });
 
-        // Points — red if outlier
+        // Points — all same treatment color
         ds.push({type:'scatter',label:t,
           data:pts.map((p,pi)=>({x:jx[pi],y:p.flux,lbl:p.label,z:zs[pi]})),
-          backgroundColor:pts.map((p,pi)=>zs[pi]>1.5?'rgba(192,57,43,.9)':TC2[t]+'cc'),
-          borderColor:pts.map((p,pi)=>zs[pi]>1.5?'#7a0f0f':TC2[t]),
-          pointRadius:pts.map((p,pi)=>zs[pi]>1.5?14:11),
-          pointHoverRadius:16,borderWidth:2.5,order:2});
+          backgroundColor:TC2[t]+'cc',
+          borderColor:TC2[t],
+          pointRadius:11,
+          pointHoverRadius:15,borderWidth:2.5,order:2});
         // Median line
-        ds.push({type:'line',label:'— Mediana',data:[{x:ti-.36,y:med},{x:ti+.36,y:med}],
+        ds.push({type:'line',label:'',data:[{x:ti-.36,y:med},{x:ti+.36,y:med}],
           borderColor:TC2[t],backgroundColor:'transparent',borderWidth:4,pointRadius:0,tension:0,order:1});
         // Mean dot (white circle)
-        ds.push({type:'scatter',label:'○ Média',data:[{x:ti,y:gm}],
+        ds.push({type:'scatter',label:'',data:[{x:ti,y:gm}],
           backgroundColor:'#fff',borderColor:TC2[t],pointRadius:7,borderWidth:2.5,order:0});
       });
 
-      // Outlier label plugin — uses stored positions
-      const outlierPlugin={id:'olbl',afterDraw(chart){
-        const{ctx,scales:{x,y}}=chart;
-        ctx.save();
-        jitterPositions.filter(p=>p.z>1.5).forEach(p=>{
-          const xp=x.getPixelForValue(p.x);
-          const yp=y.getPixelForValue(p.y);
-          ctx.fillStyle='#c0392b';
-          ctx.font='bold 11px IBM Plex Sans,sans-serif';
-          ctx.textAlign='center';
-          ctx.fillText('⚠ Z='+p.z.toFixed(1), xp, yp-16);
-        });
-        ctx.restore();
-      }};
+      // No outlier plugin — alerts shown in the yellow panel above
 
       new Chart(vcv.getContext('2d'),{type:'scatter',data:{datasets:ds},
-        plugins:[outlierPlugin],
         options:{responsive:true,plugins:{
           legend:{display:true,position:'bottom',
-            labels:{filter:(item,data)=>{
-              // show each treatment once, plus ○ Média and — Mediana once each
-              const seen=new Set();
-              let mCount=0,medCount=0;
-              return data.datasets.every((ds,i)=>{
-                if(i===item.datasetIndex){
-                  if(item.text===''||item.text===undefined)return false;
-                  if(item.text==='○ Média'){mCount++;return mCount<=1;}
-                  if(item.text==='— Mediana'){medCount++;return medCount<=1;}
-                  if(seen.has(item.text))return false;
-                  seen.add(item.text);return true;
-                }
-                if(ds.label===item.text){if(ds.label==='— Mediana'){medCount++;}if(ds.label==='○ Média'){mCount++;}}
-                return true;
-              });
-            },font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:14,color:'#020c04'}},
+            labels:{filter:item=>item.text&&item.text!=='',
+              font:{size:12,family:'IBM Plex Sans',weight:'700'},boxWidth:14,padding:14,color:'#020c04'}},
           tooltip:{callbacks:{
             label:ctx=>{
               if(!ctx.raw||!ctx.raw.lbl)return null;
@@ -908,12 +880,6 @@ function renderResults(results,area,vol,Rcm,Hcm){
           // n= label: always draw below the error bar, clamped to chart bottom
           const nLabelY=Math.min(ybc+20, ca.bottom-6);
           ctx.fillText('n='+s.n,xp,nLabelY);
-          // CV label inside bar
-          const cvLabel='CV '+s.cv.toFixed(0)+'%';
-          const barTop=y.getPixelForValue(Math.max(s.m,0));
-          const barBot=y.getPixelForValue(Math.min(s.m,0));
-          const barH=Math.abs(barTop-barBot);
-          if(barH>30){ctx.fillStyle='rgba(255,255,255,.9)';ctx.font='bold 11px IBM Plex Sans,sans-serif';ctx.fillText(cvLabel,xp,barBot-14+barH*.4);}
           ctx.restore();
         });
       }};
