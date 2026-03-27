@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>FluxCalc · CO₂ Chamber Flux Analyzer</title>
+<title>FluxCalc · Chamber Gas Flux Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -342,7 +342,7 @@ input[type=range]:active::-webkit-slider-thumb{cursor:grabbing;transform:scale(1
   <div class="hero-top">
     <div>
       <div class="hero-eyebrow">🌿🪴 CO₂ Chamber Flux Analyzer</div>
-      <h1 class="hero-title">FluxCalc — CO<sup>₂</sup></h1>
+      <h1 class="hero-title">FluxCalc</h1>
       <p class="hero-sub">🌱 Planta · 💧 Água · 🪨 Solo &nbsp;·&nbsp; Dados brutos → regressão linear → mg CO₂ m⁻² dia⁻¹</p>
     </div>
   </div>
@@ -969,15 +969,15 @@ function buildPreviews(){
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div>
             <label style="font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">▶ Início: <span id="sl_s_lbl${i}" style="color:var(--leaf);font-family:'IBM Plex Mono',monospace">${s2hms(rep.s)}</span></label>
-            <input type="range" id="sl_s${i}" min="${tsMin}" max="${tsMax}" value="${rep.s}" step="1"
+            <input type="range" id="sl_s${i}" min="${tsMin}" max="${tsMax}" value="${rep.s}" step="30"
               style="width:100%;height:6px;accent-color:var(--leaf);cursor:pointer"
-              oninput="adjSlider(${i},'s',+this.value)">
+              oninput="adjSlider(${i},'s',+this.value)" step="30">
           </div>
           <div>
             <label style="font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">◼ Fim: <span id="sl_e_lbl${i}" style="color:var(--gold);font-family:'IBM Plex Mono',monospace">${s2hms(rep.e)}</span></label>
-            <input type="range" id="sl_e${i}" min="${tsMin}" max="${tsMax}" value="${rep.e}" step="1"
+            <input type="range" id="sl_e${i}" min="${tsMin}" max="${tsMax}" value="${rep.e}" step="30"
               style="width:100%;height:6px;accent-color:var(--gold);cursor:pointer"
-              oninput="adjSlider(${i},'e',+this.value)">
+              oninput="adjSlider(${i},'e',+this.value)" step="30">
           </div>
         </div>
         <div id="pt_count${i}" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;font-family:'IBM Plex Mono',monospace"></div>
@@ -1234,12 +1234,28 @@ function renderResults(results,area_m2,vol_L,R_cm,H_cm){
   });
   h+='</tbody></table></div></div>';
 
+  // ── ANÁLISES (BRASA-style)
+  const treats=[...new Set(valid.map(r=>r.tratamento||'Sem tratamento'))];
+  const PALETTE=['#0a5226','#7a4e00','#0d3d8a','#6d1a6d','#8b1a1a','#1a5e5e'];
+  const treatColor={}; treats.forEach((t,i)=>treatColor[t]=PALETTE[i%PALETTE.length]);
+
+  h+=`<div class="card" style="margin-bottom:20px">
+    <div class="ch"><div class="ci ci-g">📊</div><div>
+      <div class="ct">Análises Gráficas</div>
+      <div class="cd">Jitterplot · Boxplot · Comparação por tratamento</div>
+    </div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="cc"><div class="cc-title">🔵 Jitterplot — fluxo por réplica</div><canvas id="chJitter" height="260"></canvas></div>
+      <div class="cc"><div class="cc-title">📦 Boxplot — distribuição por tratamento</div><canvas id="chBox" height="260"></canvas></div>
+    </div>
+    <div style="margin-top:16px" class="cc"><div class="cc-title">📈 Comparação de fluxos — CO₂ por tratamento (mg m⁻² d⁻¹)</div><canvas id="chBar2" height="200"></canvas></div>
+  </div>`;
+
   // CHARTS
   h+=`<div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-    <div class="cc"><div class="cc-title">Fluxo por réplica</div><canvas id="chBar" height="220"></canvas></div>
+    <div class="cc"><div class="cc-title">Slope médio por tratamento</div><canvas id="chBar" height="220"></canvas></div>
     <div class="cc"><div class="cc-title">CO₂ — ${valid[0]?.label||''} (com regressão)</div><canvas id="chLine" height="220"></canvas></div>
   </div>`;
-  h+=`@media(max-width:560px){.grid2{grid-template-columns:1fr!important}}`;
 
   // STEP BY STEP
   if(valid.length){
@@ -1303,6 +1319,121 @@ function renderResults(results,area_m2,vol_L,R_cm,H_cm){
       });
     }
   });
+
+  // ── POST-RAF: ANALYSIS CHARTS (jitter, box, bar by treatment) ──
+  setTimeout(()=>{
+    const treats=[...new Set(valid.map(r=>r.tratamento||'Sem tratamento'))].filter(Boolean);
+    if(!treats.length) return;
+    const PALETTE=['#0a5226','#7a4e00','#0d3d8a','#6d1a6d','#8b1a1a','#1a5e5e'];
+    const treatColor={};
+    treats.forEach((t,i)=>{ treatColor[t]=PALETTE[i%PALETTE.length]; });
+
+    // ── JITTERPLOT
+    const jctx=document.getElementById('chJitter');
+    if(jctx){
+      const jDatasets=treats.map((t,ti)=>{
+        const pts=valid.filter(r=>(r.tratamento||'Sem tratamento')===t);
+        return{
+          label:t,
+          data:pts.map(p=>({x:ti+(Math.random()-.5)*.4,y:p.flux,lbl:p.label})),
+          backgroundColor:treatColor[t]+'cc',
+          borderColor:treatColor[t],
+          pointRadius:10,pointHoverRadius:13,
+          borderWidth:2,type:'scatter'
+        };
+      });
+      new Chart(jctx.getContext('2d'),{
+        type:'scatter',data:{datasets:jDatasets},
+        options:{responsive:true,
+          plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11,family:'IBM Plex Sans'},boxWidth:12,padding:8}},
+            tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label} · ${ctx.raw.lbl||''}: ${ctx.raw.y.toFixed(3)} mg/m²/d`}}},
+          scales:{
+            x:{type:'linear',min:-.7,max:treats.length-.3,
+               ticks:{stepSize:1,callback:(_,i)=>treats[i]||'',font:{size:11,family:'IBM Plex Sans'},color:'#1a2e20'},
+               grid:{display:false}},
+            y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:11}},
+               grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'}}
+          }
+        }
+      });
+    }
+
+    // ── BOXPLOT (manual: stacked bar + scatter)
+    const bctx=document.getElementById('chBox');
+    if(bctx){
+      function qs(arr,p){const s=[...arr].sort((a,b)=>a-b);return s[Math.floor(s.length*p)]||s[0]}
+      const stats=treats.map(t=>{
+        const vals=valid.filter(r=>(r.tratamento||'Sem tratamento')===t).map(r=>r.flux);
+        const m=vals.reduce((a,b)=>a+b)/vals.length;
+        const sd=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
+        return{t,vals,q1:qs(vals,.25),med:qs(vals,.5),q3:qs(vals,.75),mean:m,sd};
+      });
+      const boxDs=[
+        {type:'bar',label:'Caixa (Q1→Q3)',
+         data:stats.map(s=>s.q3-s.q1),
+         base:stats.map(s=>s.q1),
+         backgroundColor:treats.map(t=>treatColor[t]+'55'),
+         borderColor:treats.map(t=>treatColor[t]),
+         borderWidth:2,borderSkipped:false,borderRadius:3},
+        {type:'scatter',label:'Média',
+         data:stats.map((s,i)=>({x:i,y:s.mean})),
+         backgroundColor:'#ffffff',borderColor:treats.map(t=>treatColor[t]),
+         pointRadius:9,borderWidth:3},
+        ...treats.map((t,ti)=>({
+          type:'scatter',label:'',
+          data:valid.filter(r=>(r.tratamento||'Sem tratamento')===t)
+               .map(p=>({x:ti+(Math.random()-.5)*.5,y:p.flux})),
+          backgroundColor:treatColor[t]+'99',borderColor:treatColor[t],
+          pointRadius:7,borderWidth:1.5
+        }))
+      ];
+      new Chart(bctx.getContext('2d'),{
+        type:'bar',
+        data:{labels:treats,datasets:boxDs},
+        options:{responsive:true,
+          plugins:{legend:{display:false}},
+          scales:{
+            x:{grid:{display:false},ticks:{font:{size:11,family:'IBM Plex Sans'},color:'#1a2e20'}},
+            y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:11}},
+               grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'}}
+          }
+        }
+      });
+    }
+
+    // ── BAR CHART — mean per treatment with DP label
+    const b2ctx=document.getElementById('chBar2');
+    if(b2ctx){
+      const mByT=treats.map(t=>{
+        const vals=valid.filter(r=>(r.tratamento||'Sem tratamento')===t).map(r=>r.flux);
+        const m=vals.reduce((a,b)=>a+b)/vals.length;
+        const sd=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
+        return{t,m,sd,n:vals.length};
+      });
+      new Chart(b2ctx.getContext('2d'),{
+        type:'bar',
+        data:{
+          labels:mByT.map(d=>d.t),
+          datasets:[{
+            label:'Fluxo médio',
+            data:mByT.map(d=>d.m),
+            backgroundColor:treats.map(t=>treatColor[t]+'bb'),
+            borderColor:treats.map(t=>treatColor[t]),
+            borderWidth:2.5,borderRadius:8,borderSkipped:false
+          }]
+        },
+        options:{responsive:true,
+          plugins:{legend:{display:false},
+            tooltip:{callbacks:{label:ctx=>{const d=mByT[ctx.dataIndex];return`${d.m.toFixed(3)} ± ${d.sd.toFixed(3)} mg/m²/d (n=${d.n})`}}}},
+          scales:{
+            x:{grid:{display:false},ticks:{font:{size:12,family:'IBM Plex Sans'},color:'#1a2e20'}},
+            y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:11}},
+               grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'}}
+          }
+        }
+      });
+    }
+  },100);
 }
 
 // ═══════ EXPORT ═══════
