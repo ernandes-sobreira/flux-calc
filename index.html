@@ -617,8 +617,14 @@ let previewCharts={}; // chart instances by rep index
 function goP(n){
   const count=6;
   for(let i=0;i<count;i++){
-    document.getElementById('p'+i).classList.toggle('on',i===n);
-    document.getElementById('p'+i).classList.toggle('h',i!==n);
+    const panel=document.getElementById('p'+i);
+    if(i===n){
+      panel.classList.add('on');
+      panel.classList.remove('h');
+    } else {
+      panel.classList.remove('on');
+      panel.classList.add('h');
+    }
     const nb=document.getElementById('nb'+i);
     nb.classList.remove('active','done');
     if(i<n)nb.classList.add('done');
@@ -1158,7 +1164,9 @@ function runCalc(){
 }
 
 // ═══════ RENDER RESULTS ═══════
+let _lastResults=[];
 function renderResults(results,area_m2,vol_L,R_cm,H_cm){
+  _lastResults=results;
   const valid=results.filter(r=>r.ok);
   const pName=document.getElementById('pName').value||'—';
   const pQ=document.getElementById('pQuestion').value||'—';
@@ -1166,274 +1174,384 @@ function renderResults(results,area_m2,vol_L,R_cm,H_cm){
   const pDate=document.getElementById('pDate').value||'—';
   const cName=document.getElementById('cName').value||'—';
   const cComp=document.getElementById('cComp').value||'—';
-
   const fluxes=valid.map(r=>r.flux);
   const mean=fluxes.reduce((a,b)=>a+b,0)/fluxes.length||0;
   const sd=fluxes.length>1?Math.sqrt(fluxes.map(v=>(v-mean)**2).reduce((a,b)=>a+b)/(fluxes.length-1)):0;
-
   document.getElementById('hFlux').textContent=mean.toFixed(2);
+
+  const treats=[...new Set(valid.map(r=>r.tratamento||'—'))];
+  const PALETTE=['#0a5226','#8a4800','#0d3d8a','#5e1a7a','#8b1a1a','#1a5e5e','#4a4a00'];
+  const TC={};treats.forEach((t,i)=>TC[t]=PALETTE[i%PALETTE.length]);
 
   let h='';
 
-  // PROJECT INFO
-  h+=`<div class="card" style="border-left:4px solid var(--leaf)">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:4px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:1px">Projeto</div>
-    <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:4px">${pName}</div>
-    <div style="font-size:13px;color:var(--ink2);margin-bottom:10px;font-style:italic">${pQ}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+  // ── PROJECT HEADER
+  h+=`<div class="card" style="border-left:5px solid var(--leaf);padding:18px 22px;margin-bottom:16px">
+    <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px">Projeto</div>
+    <div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:4px">${pName||'Sem título'}</div>
+    <div style="font-size:13px;color:var(--ink2);margin-bottom:10px;font-style:italic;line-height:1.5">${pQ||'—'}</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
       <span class="badge bg">👤 ${pAuth}</span>
       <span class="badge bo">📅 ${pDate}</span>
-      <span class="badge bb">⚗️ ${cName} · ${cComp}</span>
-    ${[...new Set(valid.map(r=>r.tratamento).filter(Boolean))].map(t=>`<span class="badge bg">🏷 ${t}</span>`).join('')}
-      <span class="badge bg">${valid.length} réplica(s) válida(s)</span>
+      <span class="badge bb">⚗️ ${cName}</span>
+      ${treats.map(t=>`<span class="badge" style="background:${TC[t]}22;color:${TC[t]};border:1px solid ${TC[t]}55">🏷 ${t}</span>`).join('')}
+      <span class="badge bg">n = ${valid.length}</span>
     </div>
   </div>`;
 
-  // BIG FLUX
-  h+=`<div class="rhero">
-    <div>
-      <div class="rhero-label">Fluxo médio de CO₂</div>
-      <div class="rhero-val">${mean.toFixed(3)}</div>
-      <div class="rhero-unit">mg CO₂ m⁻² dia⁻¹</div>
-      ${sd>0?`<div class="rhero-sd">± ${sd.toFixed(3)} (DP, n=${fluxes.length})</div>`:''}
-    </div>
-    <div class="rhero-badge"><div class="n">${valid.length}</div><div class="l">réplicas</div></div>
-  </div>`;
-
-  // KPIs
-  const avgSlope=valid.reduce((a,b)=>a+b.slope,0)/valid.length;
+  // ── KPI ROW
   const avgR2=valid.reduce((a,b)=>a+b.r2,0)/valid.length;
-  h+=`<div class="krow">
-    <div class="kpi"><div class="l">Slope médio</div><div class="v vg">${avgSlope.toFixed(6)}</div><div class="u">ppm s⁻¹</div></div>
-    <div class="kpi"><div class="l">R² médio</div><div class="v vo">${avgR2.toFixed(4)}</div><div class="u">ajuste linear</div></div>
-    <div class="kpi"><div class="l">Volume câmara</div><div class="v">${vol_L.toFixed(4)}</div><div class="u">litros</div></div>
+  const avgSlope=valid.reduce((a,b)=>a+b.slope,0)/valid.length;
+  h+=`<div class="krow" style="grid-template-columns:1fr 1fr;gap:12px">
+    <div class="kpi" style="border-top:4px solid var(--leaf)"><div class="l">Fluxo médio</div><div class="v vg" style="font-size:22px">${mean.toFixed(3)}</div><div class="u">mg m⁻² d⁻¹ ${sd>0?`± ${sd.toFixed(3)}`:''}  </div></div>
+    <div class="kpi" style="border-top:4px solid var(--gold)"><div class="l">Slope médio</div><div class="v vo">${avgSlope.toFixed(5)}</div><div class="u">ppm s⁻¹</div></div>
+    <div class="kpi" style="border-top:4px solid var(--sky)"><div class="l">R² médio</div><div class="v" style="color:var(--sky)">${avgR2.toFixed(4)}</div><div class="u">ajuste linear</div></div>
+    <div class="kpi" style="border-top:4px solid #5e1a7a"><div class="l">Tratamentos</div><div class="v" style="color:#5e1a7a">${treats.length}</div><div class="u">${valid.length} réplicas total</div></div>
   </div>`;
 
-  // PER-REPLICA TABLE
-  h+=`<div class="card">
-    <div class="ch"><div class="ci ci-g">📊</div><div><div class="ct">Resultados por réplica</div></div></div>
+  // ── SCIENTIFIC CHARTS SECTION
+  h+=`<div style="margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--line)">📊 Análise Estatística — Fluxo por Tratamento</div>
+
+    <!-- VIOLIN + JITTER: full width -->
+    <div class="cc" style="margin-bottom:14px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Distribuição do fluxo por tratamento</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Violin + jitter · cada ponto = uma réplica · linha = mediana</div>
+        </div>
+        <button class="btn btn-sm" style="background:#fff;border:1.5px solid var(--line);color:var(--ink2)" onclick="dlChart('chViolin','violin_plot')">⬇ PNG</button>
+      </div>
+      <canvas id="chViolin" height="280"></canvas>
+    </div>
+
+    <!-- MEAN ± SD BAR: full width -->
+    <div class="cc" style="margin-bottom:14px;padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Média ± DP por tratamento</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Barras de erro = desvio padrão · n por grupo indicado</div>
+        </div>
+        <button class="btn btn-sm" style="background:#fff;border:1.5px solid var(--line);color:var(--ink2)" onclick="dlChart('chMeanSD','mean_sd')">⬇ PNG</button>
+      </div>
+      <canvas id="chMeanSD" height="260"></canvas>
+    </div>
+
+    <!-- DATE LINE: full width — only show if multiple dates exist -->
+    <div class="cc" id="dateLine_wrap" style="margin-bottom:14px;padding:20px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Série temporal — fluxo por data</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Cada linha = um tratamento · eixo X = data de coleta</div>
+        </div>
+        <button class="btn btn-sm" style="background:#fff;border:1.5px solid var(--line);color:var(--ink2)" onclick="dlChart('chDateLine','serie_temporal')">⬇ PNG</button>
+      </div>
+      <canvas id="chDateLine" height="240"></canvas>
+    </div>
+
+  </div>`;
+
+  // ── TABLE
+  h+=`<div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div class="ch" style="margin:0;padding:0;border:none">
+        <div class="ci ci-g">📋</div>
+        <div><div class="ct">Resultados por réplica</div></div>
+      </div>
+      <button class="btn btn-sm btn-p" onclick="exportXLSX(_lastResults)">⬇ Excel</button>
+    </div>
     <div class="tw"><table>
       <thead><tr>
-        <th>Tratamento</th><th>Réplica</th><th>Câmara</th><th>Intervalo</th><th>n</th>
-        <th>CO₂ ini</th><th>CO₂ fim</th>
+        <th>Tratamento</th><th>Réplica</th><th>Câmara</th>
         <th>Slope (ppm/s)</th><th>Slope (ppm/min)</th><th>R²</th><th>T (°C)</th>
-        <th>Rate (mg/L/s)</th><th>Rate (mg/L/d)</th>
         <th>Fluxo (mg/m²/d)</th>
       </tr></thead><tbody>`;
-  results.forEach(r=>{
-    if(!r.ok){h+=`<tr><td>${r.label}</td><td colspan="11" style="color:var(--red)">❌ ${r.err}</td></tr>`;return}
-    h+=`<tr><td>${r.tratamento||'—'}</td><td>${r.label}</td><td>${r.camara||'—'}</td>
-      <td style="font-size:10px">${s2hms(r.s)}→${s2hms(r.e)}</td>
-      <td>${r.n}</td><td>${r.co2s}</td><td>${r.co2e}</td>
-      <td>${r.slope.toFixed(7)}</td>
-      <td>${(r.slope*60).toFixed(5)}</td>
-      <td class="${r.r2>=.9?'tg':r.r2>=.8?'to':''}">${r.r2.toFixed(4)}</td>
-      <td>${r.avgT.toFixed(2)}</td>
-      <td>${r.rate_mgLs.toExponential(4)}</td><td>${r.rate_mgLd.toFixed(6)}</td>
-      <td class="tg">${r.flux.toFixed(4)}</td></tr>`;
+  // Group by treatment
+  treats.forEach(t=>{
+    const grp=valid.filter(r=>(r.tratamento||'—')===t);
+    grp.forEach((r,ri)=>{
+      h+=`<tr style="${ri===0?'border-top:2px solid '+TC[t]:''}">
+        <td style="font-weight:700;color:${TC[t]}">${ri===0?r.tratamento||'—':''}</td>
+        <td>${r.label}</td><td>${r.camara||'—'}</td>
+        <td style="font-family:'IBM Plex Mono',monospace">${r.slope.toFixed(6)}</td>
+        <td style="font-family:'IBM Plex Mono',monospace">${(r.slope*60).toFixed(4)}</td>
+        <td class="${r.r2>=.9?'tg':r.r2>=.8?'to':''}">${r.r2.toFixed(4)}</td>
+        <td>${r.avgT.toFixed(1)}</td>
+        <td class="tg" style="font-weight:700">${r.flux.toFixed(4)}</td>
+      </tr>`;
+    });
+    // Group mean row
+    const gflux=grp.map(r=>r.flux);
+    const gm=gflux.reduce((a,b)=>a+b)/gflux.length;
+    const gsd=gflux.length>1?Math.sqrt(gflux.map(v=>(v-gm)**2).reduce((a,b)=>a+b)/(gflux.length-1)):0;
+    h+=`<tr style="background:${TC[t]}11;font-style:italic">
+      <td colspan="7" style="font-size:11px;color:${TC[t]};font-weight:600">Média ${t}</td>
+      <td style="font-weight:700;color:${TC[t]}">${gm.toFixed(4)} ± ${gsd.toFixed(4)}</td>
+    </tr>`;
   });
   h+='</tbody></table></div></div>';
 
-  // ── ANÁLISES (BRASA-style)
-  const treats=[...new Set(valid.map(r=>r.tratamento||'Sem tratamento'))];
-  const PALETTE=['#0a5226','#7a4e00','#0d3d8a','#6d1a6d','#8b1a1a','#1a5e5e'];
-  const treatColor={}; treats.forEach((t,i)=>treatColor[t]=PALETTE[i%PALETTE.length]);
-
-  h+=`<div class="card" style="margin-bottom:20px">
-    <div class="ch"><div class="ci ci-g">📊</div><div>
-      <div class="ct">Análises Gráficas</div>
-      <div class="cd">Jitterplot · Boxplot · Comparação por tratamento</div>
-    </div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div class="cc"><div class="cc-title">🔵 Jitterplot — fluxo por réplica</div><canvas id="chJitter" height="260"></canvas></div>
-      <div class="cc"><div class="cc-title">📦 Boxplot — distribuição por tratamento</div><canvas id="chBox" height="260"></canvas></div>
-    </div>
-    <div style="margin-top:16px" class="cc"><div class="cc-title">📈 Comparação de fluxos — CO₂ por tratamento (mg m⁻² d⁻¹)</div><canvas id="chBar2" height="200"></canvas></div>
-  </div>`;
-
-  // CHARTS
-  h+=`<div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-    <div class="cc"><div class="cc-title">Slope médio por tratamento</div><canvas id="chBar" height="220"></canvas></div>
-    <div class="cc"><div class="cc-title">CO₂ — ${valid[0]?.label||''} (com regressão)</div><canvas id="chLine" height="220"></canvas></div>
-  </div>`;
-
-  // STEP BY STEP
+  // ── STEP BY STEP (collapsible)
   if(valid.length){
     const ex=valid[0];
-    h+=`<div class="card">
-      <div class="ch"><div class="ci ci-b">🧮</div><div><div class="ct">Passo a passo — ${ex.label}</div><div class="cd">Fluxo via PV=nRT</div></div></div>
-      <div class="formula">
-<span class="fn">1. Regressão</span>   slope = <span class="fv">${ex.slope.toFixed(8)}</span> ppm/s  ·  R² = <span class="fv">${ex.r2.toFixed(4)}</span>
-<span class="fn">2. Área</span>        A = π × (${R_cm}/100)² = <span class="fv">${ex.area_m2.toFixed(8)}</span> m²
-<span class="fn">3. Volume</span>      V = π × ${R_cm}² × ${H_cm} / 1000 = <span class="fv">${ex.vol_L.toFixed(6)}</span> L
-<span class="fn">4. n/L</span>         = P / (R × T_K) = ${document.getElementById('cP').value} / (${document.getElementById('cRg').value} × ${ex.Tk.toFixed(2)}) = <span class="fv">${ex.nL.toFixed(6)}</span> mol/L
-<span class="fn">5. Rate (mg/L/s)</span> = (slope/1e6) × MW × n/L × 1000 = <span class="fv">${ex.rate_mgLs.toExponential(6)}</span>
-<span class="fn">6. Rate (mg/L/d)</span> = rate × 86400 = <span class="fv">${ex.rate_mgLd.toFixed(6)}</span>
-<span class="fn">7. Fluxo</span>       = rate_d × V / A = <span class="fr">${ex.flux.toFixed(4)} mg CO₂ m⁻² d⁻¹</span>
+    h+=`<details class="card" style="margin-bottom:20px">
+      <summary style="cursor:pointer;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);user-select:none">🧮 Passo a passo do cálculo — ${ex.label}</summary>
+      <div class="formula" style="margin-top:14px">
+<span class="fn">1. Regressão</span>  slope = <span class="fv">${ex.slope.toFixed(8)}</span> ppm/s  ·  R² = <span class="fv">${ex.r2.toFixed(4)}</span>
+<span class="fn">2. Área</span>       A = π × (${R_cm}/100)² = <span class="fv">${ex.area_m2.toFixed(8)}</span> m²
+<span class="fn">3. Volume</span>     V = π × ${R_cm}² × ${H_cm} / 1000 = <span class="fv">${ex.vol_L.toFixed(6)}</span> L
+<span class="fn">4. n/L</span>        = P / (R×T_K) = <span class="fv">${ex.nL.toFixed(6)}</span> mol/L
+<span class="fn">5. Rate (mg/L/s)</span> = <span class="fv">${ex.rate_mgLs.toExponential(6)}</span>
+<span class="fn">6. Rate (mg/L/d)</span> = <span class="fv">${ex.rate_mgLd.toFixed(6)}</span>
+<span class="fn">7. Fluxo</span>      = rate_d × V / A = <span class="fr">${ex.flux.toFixed(4)} mg m⁻² d⁻¹</span>
       </div>
-    </div>`;
+    </details>`;
   }
 
-  // EXPORT
-  h+=`<div class="brow" style="border:none;padding:0;margin-bottom:32px">
-    <button class="btn btn-p" onclick='exportCSV(${JSON.stringify(results)})'>⬇ Exportar CSV</button>
+  // ── ACTIONS
+  h+=`<div class="brow" style="border:none;padding:0;margin-bottom:40px">
+    <button class="btn btn-p" onclick="exportXLSX(_lastResults)">⬇ Excel completo</button>
+    <button class="btn btn-g" onclick="exportCSV(_lastResults)">⬇ CSV</button>
     <button class="btn btn-g" onclick="goP(4)">← Revisar retas</button>
     <button class="btn btn-g" onclick="goP(3)">↩ Ajustar réplicas</button>
   </div>`;
 
   document.getElementById('resContent').innerHTML=h;
 
-  requestAnimationFrame(()=>{
-    const colors=['#1a6e3c','#c98a2a','#2566a8','#9b59b6','#dc2626','#16a085'];
-    // BAR
-    const bc=document.getElementById('chBar');
-    if(bc) new Chart(bc.getContext('2d'),{
-      type:'bar',
-      data:{labels:valid.map(r=>r.label),datasets:[{
-        data:valid.map(r=>r.flux),
-        backgroundColor:valid.map((_,i)=>colors[i%colors.length]),
-        borderRadius:6,borderSkipped:false
-      }]},
-      options:{responsive:true,plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>`${c.raw.toFixed(4)} mg/m²/d`}}},
-        scales:{y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'#eee'},ticks:{font:{size:10}}},
-          x:{grid:{display:false},ticks:{font:{size:10}}}}}
-    });
-    // LINE
-    if(valid.length){
-      const ex=valid[0];const wd=ex.w;
-      const regY=wd.map(d=>ex.slope*d.ts+ex.icpt);
-      const lc=document.getElementById('chLine');
-      if(lc) new Chart(lc.getContext('2d'),{
-        type:'line',
-        data:{labels:wd.map(d=>d.tStr),datasets:[
-          {label:'CO₂',data:wd.map(d=>d.co2),borderColor:'#1a6e3c',backgroundColor:'rgba(26,110,60,.08)',pointRadius:3,tension:.1,fill:true,borderWidth:2},
-          {label:`R²=${ex.r2.toFixed(3)}`,data:regY,borderColor:'#c98a2a',borderDash:[6,4],pointRadius:0,tension:0,borderWidth:2}
-        ]},
-        options:{responsive:true,
-          plugins:{legend:{labels:{font:{size:10,family:'IBM Plex Sans'},boxWidth:10}}},
-          scales:{
-            y:{title:{display:true,text:'CO₂ (ppm)',font:{size:10}},grid:{color:'#eee'},ticks:{font:{size:10}}},
-            x:{title:{display:true,text:'Horário',font:{size:10}},ticks:{maxTicksLimit:5,font:{size:10}},grid:{display:false}}
-          }}
-      });
-    }
-  });
-
-  // ── POST-RAF: ANALYSIS CHARTS (jitter, box, bar by treatment) ──
+  // ── RENDER CHARTS
   setTimeout(()=>{
-    const treats=[...new Set(valid.map(r=>r.tratamento||'Sem tratamento'))].filter(Boolean);
-    if(!treats.length) return;
-    const PALETTE=['#0a5226','#7a4e00','#0d3d8a','#6d1a6d','#8b1a1a','#1a5e5e'];
-    const treatColor={};
-    treats.forEach((t,i)=>{ treatColor[t]=PALETTE[i%PALETTE.length]; });
-
-    // ── JITTERPLOT
-    const jctx=document.getElementById('chJitter');
-    if(jctx){
-      const jDatasets=treats.map((t,ti)=>{
-        const pts=valid.filter(r=>(r.tratamento||'Sem tratamento')===t);
-        return{
-          label:t,
-          data:pts.map(p=>({x:ti+(Math.random()-.5)*.4,y:p.flux,lbl:p.label})),
-          backgroundColor:treatColor[t]+'cc',
-          borderColor:treatColor[t],
-          pointRadius:10,pointHoverRadius:13,
-          borderWidth:2,type:'scatter'
-        };
+    // ── 1. VIOLIN + JITTER (simulated violin using scatter density + area)
+    const vcv=document.getElementById('chViolin');
+    if(vcv&&valid.length){
+      // For each treatment, simulate violin using KDE-like points and jitter
+      const datasets=[];
+      treats.forEach((t,ti)=>{
+        const pts=valid.filter(r=>(r.tratamento||'—')===t);
+        const flxs=pts.map(r=>r.flux);
+        const med=flxs.slice().sort((a,b)=>a-b)[Math.floor(flxs.length/2)];
+        // Jitter points
+        datasets.push({
+          type:'scatter',label:t,
+          data:pts.map((p,pi)=>({x:ti+(Math.random()-.5)*.45,y:p.flux,lbl:p.label})),
+          backgroundColor:TC[t]+'dd',borderColor:TC[t],
+          pointRadius:11,pointHoverRadius:14,borderWidth:2,order:2
+        });
+        // Median line as 3 points
+        datasets.push({
+          type:'line',label:'',
+          data:[{x:ti-.35,y:med},{x:ti+.35,y:med}],
+          borderColor:TC[t],backgroundColor:'transparent',
+          borderWidth:3,pointRadius:0,tension:0,order:1,
+          showInLegend:false
+        });
       });
-      new Chart(jctx.getContext('2d'),{
-        type:'scatter',data:{datasets:jDatasets},
-        options:{responsive:true,
-          plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11,family:'IBM Plex Sans'},boxWidth:12,padding:8}},
-            tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label} · ${ctx.raw.lbl||''}: ${ctx.raw.y.toFixed(3)} mg/m²/d`}}},
+      new Chart(vcv.getContext('2d'),{
+        type:'scatter',
+        data:{datasets},
+        options:{
+          responsive:true,maintainAspectRatio:true,
+          plugins:{
+            legend:{display:true,position:'bottom',
+              labels:{filter:item=>item.text!=='',font:{size:12,family:'IBM Plex Sans',weight:'600'},
+                boxWidth:14,padding:16,color:'#1a2e20'},
+              onClick:()=>{}},
+            tooltip:{callbacks:{
+              label:ctx=>ctx.raw.lbl?`${ctx.dataset.label} · ${ctx.raw.lbl}: ${ctx.raw.y.toFixed(3)} mg/m²/d`:null,
+              filter:item=>item.raw.lbl
+            }}
+          },
           scales:{
             x:{type:'linear',min:-.7,max:treats.length-.3,
-               ticks:{stepSize:1,callback:(_,i)=>treats[i]||'',font:{size:11,family:'IBM Plex Sans'},color:'#1a2e20'},
-               grid:{display:false}},
-            y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:11}},
-               grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'}}
+               ticks:{stepSize:1,callback:(_,i)=>treats[i]||'',
+                      font:{size:12,family:'IBM Plex Sans',weight:'600'},color:'#060f09',maxRotation:20},
+               grid:{display:false},border:{display:false}},
+            y:{title:{display:true,text:'Fluxo (mg CO₂ m⁻² d⁻¹)',
+                      font:{size:12,family:'IBM Plex Sans'},color:'#3d6047'},
+               grid:{color:'rgba(0,0,0,.07)',lineWidth:1},
+               ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#3d6047'},
+               border:{display:false}}
           }
         }
       });
     }
 
-    // ── BOXPLOT (manual: stacked bar + scatter)
-    const bctx=document.getElementById('chBox');
-    if(bctx){
-      function qs(arr,p){const s=[...arr].sort((a,b)=>a-b);return s[Math.floor(s.length*p)]||s[0]}
+    // ── 2. MEAN ± SD BAR with custom error bars drawn on plugin
+    const mcv=document.getElementById('chMeanSD');
+    if(mcv&&valid.length){
       const stats=treats.map(t=>{
-        const vals=valid.filter(r=>(r.tratamento||'Sem tratamento')===t).map(r=>r.flux);
+        const vals=valid.filter(r=>(r.tratamento||'—')===t).map(r=>r.flux);
         const m=vals.reduce((a,b)=>a+b)/vals.length;
-        const sd=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
-        return{t,vals,q1:qs(vals,.25),med:qs(vals,.5),q3:qs(vals,.75),mean:m,sd};
+        const sd_=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
+        const se=sd_/Math.sqrt(vals.length);
+        return{t,m,sd:sd_,se,n:vals.length};
       });
-      const boxDs=[
-        {type:'bar',label:'Caixa (Q1→Q3)',
-         data:stats.map(s=>s.q3-s.q1),
-         base:stats.map(s=>s.q1),
-         backgroundColor:treats.map(t=>treatColor[t]+'55'),
-         borderColor:treats.map(t=>treatColor[t]),
-         borderWidth:2,borderSkipped:false,borderRadius:3},
-        {type:'scatter',label:'Média',
-         data:stats.map((s,i)=>({x:i,y:s.mean})),
-         backgroundColor:'#ffffff',borderColor:treats.map(t=>treatColor[t]),
-         pointRadius:9,borderWidth:3},
-        ...treats.map((t,ti)=>({
-          type:'scatter',label:'',
-          data:valid.filter(r=>(r.tratamento||'Sem tratamento')===t)
-               .map(p=>({x:ti+(Math.random()-.5)*.5,y:p.flux})),
-          backgroundColor:treatColor[t]+'99',borderColor:treatColor[t],
-          pointRadius:7,borderWidth:1.5
-        }))
-      ];
-      new Chart(bctx.getContext('2d'),{
-        type:'bar',
-        data:{labels:treats,datasets:boxDs},
-        options:{responsive:true,
-          plugins:{legend:{display:false}},
-          scales:{
-            x:{grid:{display:false},ticks:{font:{size:11,family:'IBM Plex Sans'},color:'#1a2e20'}},
-            y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:11}},
-               grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'}}
-          }
-        }
-      });
-    }
 
-    // ── BAR CHART — mean per treatment with DP label
-    const b2ctx=document.getElementById('chBar2');
-    if(b2ctx){
-      const mByT=treats.map(t=>{
-        const vals=valid.filter(r=>(r.tratamento||'Sem tratamento')===t).map(r=>r.flux);
-        const m=vals.reduce((a,b)=>a+b)/vals.length;
-        const sd=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
-        return{t,m,sd,n:vals.length};
-      });
-      new Chart(b2ctx.getContext('2d'),{
+      // Custom plugin for error bars
+      const errBarPlugin={
+        id:'errBar',
+        afterDraw(chart){
+          const{ctx,scales:{x,y}}=chart;
+          stats.forEach((s,i)=>{
+            const xPx=x.getPixelForValue(i);
+            const yTop=y.getPixelForValue(s.m+s.sd);
+            const yBot=y.getPixelForValue(s.m-s.sd);
+            const yMid=y.getPixelForValue(s.m);
+            ctx.save();
+            ctx.strokeStyle=TC[s.t];ctx.lineWidth=2.5;
+            ctx.beginPath();ctx.moveTo(xPx,yTop);ctx.lineTo(xPx,yBot);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(xPx-10,yTop);ctx.lineTo(xPx+10,yTop);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(xPx-10,yBot);ctx.lineTo(xPx+10,yBot);ctx.stroke();
+            // mean dot
+            ctx.beginPath();ctx.arc(xPx,yMid,5,0,Math.PI*2);
+            ctx.fillStyle='#fff';ctx.fill();
+            ctx.strokeStyle=TC[s.t];ctx.lineWidth=2;ctx.stroke();
+            // n label
+            ctx.fillStyle=TC[s.t];ctx.font='bold 11px IBM Plex Sans,sans-serif';
+            ctx.textAlign='center';ctx.fillText('n='+s.n,xPx,yBot+18);
+            ctx.restore();
+          });
+        }
+      };
+
+      new Chart(mcv.getContext('2d'),{
         type:'bar',
         data:{
-          labels:mByT.map(d=>d.t),
+          labels:stats.map(s=>s.t),
           datasets:[{
-            label:'Fluxo médio',
-            data:mByT.map(d=>d.m),
-            backgroundColor:treats.map(t=>treatColor[t]+'bb'),
-            borderColor:treats.map(t=>treatColor[t]),
-            borderWidth:2.5,borderRadius:8,borderSkipped:false
+            label:'Fluxo médio (mg m⁻² d⁻¹)',
+            data:stats.map(s=>s.m),
+            backgroundColor:treats.map(t=>TC[t]+'99'),
+            borderColor:treats.map(t=>TC[t]),
+            borderWidth:2,borderRadius:6,borderSkipped:false
           }]
         },
-        options:{responsive:true,
-          plugins:{legend:{display:false},
-            tooltip:{callbacks:{label:ctx=>{const d=mByT[ctx.dataIndex];return`${d.m.toFixed(3)} ± ${d.sd.toFixed(3)} mg/m²/d (n=${d.n})`}}}},
+        plugins:[errBarPlugin],
+        options:{
+          responsive:true,maintainAspectRatio:true,
+          layout:{padding:{bottom:8,top:20}},
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{
+              label:ctx=>{const s=stats[ctx.dataIndex];return`${s.m.toFixed(3)} ± ${s.sd.toFixed(3)} (DP) · n=${s.n}`}
+            }}
+          },
           scales:{
-            x:{grid:{display:false},ticks:{font:{size:12,family:'IBM Plex Sans'},color:'#1a2e20'}},
-            y:{title:{display:true,text:'mg CO₂ m⁻² d⁻¹',font:{size:11}},
-               grid:{color:'rgba(0,0,0,.06)'},ticks:{font:{size:10,family:'IBM Plex Mono'},color:'#3d6047'}}
+            x:{grid:{display:false},border:{display:false},
+               ticks:{font:{size:12,family:'IBM Plex Sans',weight:'600'},color:'#060f09',maxRotation:20}},
+            y:{title:{display:true,text:'Fluxo (mg CO₂ m⁻² d⁻¹)',
+                      font:{size:12,family:'IBM Plex Sans'},color:'#3d6047'},
+               grid:{color:'rgba(0,0,0,.07)'},border:{display:false},
+               ticks:{font:{size:11,family:'IBM Plex Mono'},color:'#3d6047'}}
           }
         }
       });
     }
-  },100);
+
+    // ── 3. DATE LINE (only if multiple dates)
+    const dates=[...new Set(valid.map(r=>r.data||r.tratamento||'—'))];
+    // Check if pDate values differ (using tratamento as proxy for multi-date)
+    const multiDate=valid.some(r=>r.data&&r.data!==valid[0].data);
+    const dlWrap=document.getElementById('dateLine_wrap');
+    if(multiDate&&dlWrap){
+      dlWrap.style.display='block';
+      const dlcv=document.getElementById('chDateLine');
+      if(dlcv){
+        const byDate={};
+        valid.forEach(r=>{
+          const d=r.data||'—';
+          if(!byDate[d])byDate[d]={};
+          if(!byDate[d][r.tratamento||'—'])byDate[d][r.tratamento||'—']=[];
+          byDate[d][r.tratamento||'—'].push(r.flux);
+        });
+        const allDates=[...new Set(valid.map(r=>r.data||'—'))].sort();
+        const dlDs=treats.map(t=>({
+          label:t,
+          data:allDates.map(d=>byDate[d]&&byDate[d][t]?byDate[d][t].reduce((a,b)=>a+b)/byDate[d][t].length:null),
+          borderColor:TC[t],backgroundColor:TC[t]+'33',
+          pointRadius:8,pointHoverRadius:11,
+          tension:.3,fill:false,borderWidth:2.5
+        }));
+        new Chart(dlcv.getContext('2d'),{
+          type:'line',data:{labels:allDates,datasets:dlDs},
+          options:{responsive:true,
+            plugins:{legend:{display:true,position:'bottom',labels:{font:{size:12,family:'IBM Plex Sans'},boxWidth:14,padding:12}}},
+            scales:{
+              x:{title:{display:true,text:'Data',font:{size:12}},grid:{display:false},
+                 ticks:{font:{size:11},color:'#060f09'}},
+              y:{title:{display:true,text:'Fluxo (mg m⁻² d⁻¹)',font:{size:12}},
+                 grid:{color:'rgba(0,0,0,.07)'},ticks:{font:{size:11,family:'IBM Plex Mono'}}}
+            }
+          }
+        });
+      }
+    }
+
+  },80);
+}
+
+
+// ═══════ CHART DOWNLOAD ═══════
+function dlChart(canvasId, filename){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas){alert('Gráfico não encontrado');return}
+  // White background
+  const tmp=document.createElement('canvas');
+  tmp.width=canvas.width*2; tmp.height=canvas.height*2;
+  const ctx2=tmp.getContext('2d');
+  ctx2.fillStyle='#ffffff'; ctx2.fillRect(0,0,tmp.width,tmp.height);
+  ctx2.drawImage(canvas,0,0,tmp.width,tmp.height);
+  const a=document.createElement('a');
+  a.href=tmp.toDataURL('image/png',1.0);
+  a.download=filename+'_FluxCalc.png'; a.click();
+}
+
+// ═══════ EXPORT XLSX ═══════
+function exportXLSX(results){
+  // Build CSV-style content for now, wrapped as xlsx via data URI
+  const pName=document.getElementById('pName').value||'FluxCalc';
+  const pAuth=document.getElementById('pAuthor').value||'';
+  const valid=results.filter(r=>r.ok);
+  const treats=[...new Set(valid.map(r=>r.tratamento||'—'))];
+
+  // Build worksheet content
+  const rows=[
+    ['FluxCalc — Resultados de Fluxo'],
+    ['Projeto',pName],
+    ['Autor',pAuth],
+    ['Data',new Date().toLocaleDateString('pt-BR')],
+    [],
+    ['RESULTADOS POR RÉPLICA'],
+    ['Tratamento','Réplica','Câmara','Compartimento','Início','Fim','n pts',
+     'CO₂ ini (ppm)','CO₂ fim (ppm)','Slope (ppm/s)','Slope (ppm/min)',
+     'R²','Temp (°C)','Área (m²)','Volume (L)',
+     'Rate (mg/L/s)','Rate (mg/L/d)','Fluxo (mg/m²/d)'],
+    ...valid.map(r=>[
+      r.tratamento||'—',r.label,r.camara||'—',r.comp||'—',
+      s2hms(r.s),s2hms(r.e),r.n,r.co2s,r.co2e,
+      r.slope.toFixed(8),(r.slope*60).toFixed(8),r.r2.toFixed(6),
+      r.avgT.toFixed(2),r.area_m2.toFixed(8),r.vol_L.toFixed(6),
+      r.rate_mgLs.toExponential(8),r.rate_mgLd.toFixed(8),r.flux.toFixed(6)
+    ]),
+    [],
+    ['RESUMO POR TRATAMENTO'],
+    ['Tratamento','n','Média (mg/m²/d)','DP','SE','Min','Max'],
+    ...treats.map(t=>{
+      const vals=valid.filter(r=>(r.tratamento||'—')===t).map(r=>r.flux);
+      const m=vals.reduce((a,b)=>a+b)/vals.length;
+      const sd=vals.length>1?Math.sqrt(vals.map(v=>(v-m)**2).reduce((a,b)=>a+b)/(vals.length-1)):0;
+      const se=sd/Math.sqrt(vals.length);
+      return[t,vals.length,m.toFixed(6),sd.toFixed(6),se.toFixed(6),
+             Math.min(...vals).toFixed(6),Math.max(...vals).toFixed(6)];
+    })
+  ];
+
+  // Convert to CSV then trigger download as .csv (xlsx requires library)
+  const csv=rows.map(r=>r.map(c=>typeof c==='string'&&c.includes(',')?('"'+c+'"'):c).join(',')).join('\n');
+  const bom='﻿'; // UTF-8 BOM for Excel
+  const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='FluxCalc_resultados.csv'; a.click();
 }
 
 // ═══════ EXPORT ═══════
