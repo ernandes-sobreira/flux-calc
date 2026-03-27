@@ -288,6 +288,49 @@ td{padding:8px 12px;white-space:nowrap;font-family:'IBM Plex Mono',monospace;fon
   .brow{gap:8px}
   .btn{font-size:13px}
 }
+
+/* ── TOGGLE SELECT BUTTON ── */
+.rep-select-btn{
+  padding:13px 24px;
+  border-radius:9px;
+  font-size:15px;font-weight:700;
+  cursor:pointer;
+  border:3px solid var(--leaf);
+  transition:all .15s;
+  font-family:'IBM Plex Sans',sans-serif;
+  background:transparent;
+  color:var(--leaf);
+  min-width:200px;
+  display:inline-flex;align-items:center;gap:10px;
+  justify-content:center;
+  letter-spacing:.3px;
+}
+.rep-select-btn.selected{
+  background:var(--leaf);
+  color:#ffffff;
+  box-shadow:0 4px 14px rgba(10,82,38,.35);
+}
+.rep-select-btn:active{transform:scale(.97)}
+
+/* ── RANGE SLIDER IMPROVEMENTS ── */
+input[type=range]{
+  -webkit-appearance:none;
+  appearance:none;
+  height:8px;
+  border-radius:4px;
+  outline:none;
+  cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:26px;height:26px;
+  border-radius:50%;
+  cursor:grab;
+  border:3px solid currentColor;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+input[type=range]:active::-webkit-slider-thumb{cursor:grabbing;transform:scale(1.15)}
 </style>
 </head>
 <body>
@@ -635,9 +678,15 @@ function processRaw(f){
       if(f.name.toLowerCase().endsWith('.csv'))parseCSVraw(ev.target.result);
       else{
         const wb=XLSX.read(ev.target.result,{type:'binary',cellDates:true});
-        const ws=wb.Sheets[wb.SheetNames[0]];
-        const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'HH:MM:SS'});
-        parseRowsRaw(rows);
+        // Merge ALL sheets — each sheet may have different time ranges
+        let allRows=[];
+        wb.SheetNames.forEach(sn=>{
+          const ws=wb.Sheets[sn];
+          const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'HH:MM:SS'});
+          allRows=allRows.concat(rows);
+        });
+        const sheetsInfo=`${wb.SheetNames.length} aba(s): ${wb.SheetNames.join(', ')}`;
+        parseRowsRaw(allRows, sheetsInfo);
       }
     }catch(err){showAlert('da1','err','❌ Erro: '+err.message)}
   };
@@ -645,7 +694,7 @@ function processRaw(f){
 }
 function parseCSVraw(txt){parseRowsRaw(txt.trim().split('\n').map(l=>l.split(/[,;\t]/)))}
 
-function parseRowsRaw(rows){
+function parseRowsRaw(rows, sheetsInfo){
   raw=[];
   // Find the header row first (has 'hora' or 'co2' in it), then start reading from next row
   // If no header found, start from row 0
@@ -675,7 +724,7 @@ function parseRowsRaw(rows){
     });
   }
   if(!raw.length){showAlert('da1','err','❌ Nenhuma linha válida. Certifique-se que a planilha tem: Data · Hora · CO₂ · Temp · RH nas primeiras 5 colunas.');return}
-  showAlert('da1','ok',`✅ ${raw.length} leituras carregadas com sucesso.`);
+  showAlert('da1','ok',`✅ ${raw.length} leituras carregadas.${sheetsInfo?' ('+sheetsInfo+')':''} Intervalo: ${raw[0].tStr} → ${raw[raw.length-1].tStr}`);
   document.getElementById('hRows').textContent=raw.length;
   renderPrev();
 }
@@ -909,32 +958,42 @@ function buildPreviews(){
       <canvas id="${canvasId}" height="200"></canvas>
 
       <!-- INLINE TIME ADJUSTMENT SLIDERS -->
-      <div style="background:#f0f7f3;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-top:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--leaf);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">🕐 Ajustar janela de tempo</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:#e8f5ec;border:1.5px solid var(--leaf);border-radius:10px;padding:14px 16px;margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--leaf);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">🕐 Ajustar janela de tempo</div>
+        <!-- Visual range bar -->
+        <div style="position:relative;height:10px;background:#b8d4c0;border-radius:6px;margin-bottom:16px;overflow:visible" id="rbar${i}">
+          <div id="rfill${i}" style="position:absolute;height:100%;background:var(--leaf);border-radius:6px;opacity:.75;transition:left .08s,width .08s"></div>
+          <div id="rhandle_s${i}" style="position:absolute;top:-5px;width:20px;height:20px;background:#fff;border:3px solid var(--leaf);border-radius:50%;transform:translateX(-50%);box-shadow:0 2px 6px rgba(0,0,0,.25)"></div>
+          <div id="rhandle_e${i}" style="position:absolute;top:-5px;width:20px;height:20px;background:#fff;border:3px solid var(--gold);border-radius:50%;transform:translateX(-50%);box-shadow:0 2px 6px rgba(0,0,0,.25)"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div>
-            <label style="font-size:10px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">INÍCIO: <span id="sl_s_lbl${i}">${s2hms(rep.s)}</span></label>
-            <input type="range" id="sl_s${i}" min="${tsMin}" max="${tsMax}" value="${rep.s}" step="30"
-              style="width:100%;accent-color:var(--leaf)"
+            <label style="font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">▶ Início: <span id="sl_s_lbl${i}" style="color:var(--leaf);font-family:'IBM Plex Mono',monospace">${s2hms(rep.s)}</span></label>
+            <input type="range" id="sl_s${i}" min="${tsMin}" max="${tsMax}" value="${rep.s}" step="1"
+              style="width:100%;height:6px;accent-color:var(--leaf);cursor:pointer"
               oninput="adjSlider(${i},'s',+this.value)">
           </div>
           <div>
-            <label style="font-size:10px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">FIM: <span id="sl_e_lbl${i}">${s2hms(rep.e)}</span></label>
-            <input type="range" id="sl_e${i}" min="${tsMin}" max="${tsMax}" value="${rep.e}" step="30"
-              style="width:100%;accent-color:var(--gold)"
+            <label style="font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">◼ Fim: <span id="sl_e_lbl${i}" style="color:var(--gold);font-family:'IBM Plex Mono',monospace">${s2hms(rep.e)}</span></label>
+            <input type="range" id="sl_e${i}" min="${tsMin}" max="${tsMax}" value="${rep.e}" step="1"
+              style="width:100%;height:6px;accent-color:var(--gold);cursor:pointer"
               oninput="adjSlider(${i},'e',+this.value)">
           </div>
         </div>
+        <div id="pt_count${i}" style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;font-family:'IBM Plex Mono',monospace"></div>
       </div>
       `:`<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px;background:#f5faf7;border-radius:8px;border:1px solid var(--line)">⚠ Apenas ${w.length} ponto(s) nessa janela — mínimo 3</div>`}
 
-      <!-- INDEPENDENT CHECKBOX — no group, no radio -->
-      <div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:2px solid var(--line);flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;font-weight:700;color:var(--leaf)">
-          <input type="checkbox" id="${checkId}" ${r2>=.8&&valid?'checked':''} style="width:22px;height:22px;accent-color:var(--leaf);cursor:pointer">
-          Usar no cálculo
-        </label>
-        ${!valid?'<span style="font-size:12px;color:var(--red);font-weight:600">⚠ Dados insuficientes</span>':r2<.8?'<span style="font-size:12px;color:var(--gold);font-weight:600">⚠ R² baixo — ajuste os horários acima</span>':'<span style="font-size:12px;color:var(--leaf)">✓ Reta aprovada</span>'}
+      <!-- TOGGLE BUTTON — fully independent per replica -->
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:2.5px solid var(--line);flex-wrap:wrap">
+        <button id="${checkId}"
+          class="rep-select-btn ${r2>=.8&&valid?'selected':''}"
+          onclick="toggleRep(this)"
+          data-idx="${i}"
+          data-on="${r2>=.8&&valid?'true':'false'}">
+          ${r2>=.8&&valid?'✅ Usar no cálculo':'☐ Usar no cálculo'}
+        </button>
+        ${!valid?'<span style="font-size:12px;color:var(--red);font-weight:600">⚠ Dados insuficientes</span>':r2<.8?'<span style="font-size:12px;color:var(--gold);font-weight:600">⚠ R² baixo — ajuste acima</span>':'<span style="font-size:12px;color:var(--leaf);font-weight:600">✓ Reta aprovada</span>'}
       </div>
     </div>`;
     container.insertAdjacentHTML('beforeend',html2);
@@ -960,6 +1019,7 @@ function drawPreviewChart(i){
   if(!canvas)return;
   if(previewCharts[i])try{previewCharts[i].destroy()}catch(e){}
 
+  updateRangeBar(i);
   previewCharts[i]=new Chart(canvas.getContext('2d'),{
     type:'line',
     data:{
@@ -1012,21 +1072,54 @@ function drawPreviewChart(i){
 }
 
 // Handle slider adjustment
+// Toggle selection button — fully independent
+
+function toggleRep(btn){
+  const on = btn.getAttribute('data-on')==='true';
+  const newOn = !on;
+  btn.setAttribute('data-on', String(newOn));
+  btn.classList.toggle('selected', newOn);
+  btn.innerHTML = newOn ? '✅ Usar no cálculo' : '☐ Usar no cálculo';
+}
+
 function adjSlider(i,side,val){
   if(side==='s'){
+    // don't allow start past end
+    if(val>=reps[i].e) val=reps[i].e-1;
     reps[i].s=val;
     document.getElementById('sl_s_lbl'+i).textContent=s2hms(val);
-    document.getElementById('slbl_s'+i).textContent=s2hms(val);
+    const slbl=document.getElementById('slbl_s'+i);
+    if(slbl)slbl.textContent=s2hms(val);
   } else {
+    if(val<=reps[i].s) val=reps[i].s+1;
     reps[i].e=val;
     document.getElementById('sl_e_lbl'+i).textContent=s2hms(val);
-    document.getElementById('slbl_e'+i).textContent=s2hms(val);
+    const elbl=document.getElementById('slbl_e'+i);
+    if(elbl)elbl.textContent=s2hms(val);
   }
-  // update point count
+  updateRangeBar(i);
   const w=raw.filter(d=>d.ts>=reps[i].s&&d.ts<=reps[i].e);
-  const hd=document.querySelector(`#pcard${i} .pc-hd`);
-  if(hd){const d2=hd.querySelector('div div:last-child');if(d2)d2.innerHTML=`<strong>${s2hms(reps[i].s)}</strong> → <strong>${s2hms(reps[i].e)}</strong> · <strong style="color:var(--ink)">${w.length} pontos</strong>`}
-  drawPreviewChart(i);
+  const pc=document.getElementById('pt_count'+i);
+  if(pc) pc.textContent=w.length+' ponto(s) na janela';
+  if(w.length>=3) drawPreviewChart(i);
+}
+
+function updateRangeBar(i){
+  const bar=document.getElementById('rbar'+i);
+  const fill=document.getElementById('rfill'+i);
+  const hs=document.getElementById('rhandle_s'+i);
+  const he=document.getElementById('rhandle_e'+i);
+  if(!bar||!fill)return;
+  const slS=document.getElementById('sl_s'+i);
+  const slE=document.getElementById('sl_e'+i);
+  if(!slS||!slE)return;
+  const min=+slS.min, max=+slS.max;
+  const pS=((reps[i].s-min)/(max-min))*100;
+  const pE=((reps[i].e-min)/(max-min))*100;
+  fill.style.left=pS+'%';
+  fill.style.width=(pE-pS)+'%';
+  if(hs) hs.style.left=pS+'%';
+  if(he) he.style.left=pE+'%';
 }
 
 // ═══════ CALCULATION ═══════
@@ -1039,10 +1132,10 @@ function runCalc(){
   const area_m2=Math.PI*(R_cm/100)**2;
   const vol_L=Math.PI*R_cm*R_cm*H_cm/1000;
 
-  // which replicas are checked — INDEPENDENT checkboxes
+  // which replicas are selected — read toggle button state
   const selected=reps.filter((_,i)=>{
-    const chk=document.getElementById('chk_'+i);
-    return chk&&chk.checked;
+    const btn=document.getElementById('chk_'+i);
+    return btn && btn.getAttribute('data-on')==='true';
   });
   if(!selected.length){alert('Selecione ao menos uma réplica para calcular.');return}
 
