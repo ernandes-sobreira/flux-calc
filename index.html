@@ -7,6 +7,37 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, set, get, remove, onValue, push, child }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzL_Pic_2JETKOqs4tD9EC2TRynEFaZG4",
+    authDomain: "som-ambiental.firebaseapp.com",
+    databaseURL: "https://som-ambiental-default-rtdb.firebaseio.com",
+    projectId: "som-ambiental",
+    storageBucket: "som-ambiental.firebasestorage.app",
+    messagingSenderId: "1008024969251",
+    appId: "1:1008024969251:web:c40b04fbe48dd578a05196"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // Expor para uso no script global
+  window._db = db;
+  window._fbRef = ref;
+  window._fbSet = set;
+  window._fbGet = get;
+  window._fbRemove = remove;
+  window._fbPush = push;
+  window._fbChild = child;
+  window._fbOnValue = onValue;
+  window._fbReady = true;
+  document.dispatchEvent(new Event('firebase-ready'));
+</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'IBM Plex Sans',sans-serif;background:#c8e6d0;color:#020c04;min-height:100vh}
@@ -158,13 +189,55 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
 .h{display:none!important}
 details summary{cursor:pointer;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#2d5036;user-select:none;padding:4px 0}
 @media(max-width:480px){.card{padding:16px}.brow{gap:8px}.btn{font-size:13px}}
+
+/* LOGIN OVERLAY */
+#loginOverlay{position:fixed;inset:0;background:#c8e6d0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:#fff;border-radius:14px;border:3px solid #5db874;box-shadow:0 8px 40px rgba(5,46,22,.18);padding:36px 32px;max-width:400px;width:100%;text-align:center}
+.login-logo{font-family:'Playfair Display',serif;font-size:40px;font-weight:900;color:#020c04;letter-spacing:-1.5px;margin-bottom:4px}
+.login-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#2d5036;font-weight:700;margin-bottom:28px}
+.login-box input[type=email]{border:2.5px solid #5db874;border-radius:8px;padding:14px 16px;font-size:15px;text-align:center;margin-bottom:12px}
+.login-box input[type=email]:focus{border-color:#052e16;outline:none;box-shadow:0 0 0 3px rgba(5,46,22,.15)}
+.login-btn{width:100%;padding:14px;background:#052e16;color:#fff;border:none;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;margin-bottom:10px}
+.login-btn:hover{background:#031a0c;transform:translateY(-1px);box-shadow:0 4px 14px rgba(5,46,22,.35)}
+.login-err{color:#5a0a0a;font-size:13px;font-weight:700;padding:8px;background:#fbb;border-radius:6px;margin-bottom:10px;display:none}
+
+/* USER PILL */
+#userPill{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff;border:2px solid #5db874;border-radius:20px;font-size:13px;font-weight:700;color:#052e16;cursor:pointer;transition:all .15s;flex-shrink:0;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#userPill:hover{background:#c8e6d0;border-color:#052e16}
+
+/* PROJECTS PANEL */
+#projPanel{background:#fff;border:2.5px solid #5db874;border-radius:12px;padding:20px;margin-bottom:16px}
+.proj-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:2px solid #7ccb8f;border-radius:8px;margin-bottom:8px;background:#ecf8f0;cursor:pointer;transition:all .15s}
+.proj-item:hover{border-color:#052e16;background:#9dddb0}
+.proj-item-info{flex:1;min-width:0}
+.proj-item-name{font-weight:700;font-size:14px;color:#020c04;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-item-meta{font-size:11px;color:#2d5036;margin-top:2px;font-family:'IBM Plex Mono',monospace}
+.proj-del{background:none;border:none;color:#5a0a0a;font-size:20px;cursor:pointer;padding:2px 8px;border-radius:6px;flex-shrink:0}
+.proj-del:hover{background:#fbb}
 </style>
 </head>
 <body>
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">FluxCalc</div>
+    <div class="login-sub">🌿 Gas Flux Analyzer</div>
+    <div class="login-err" id="loginErr"></div>
+    <input type="email" id="loginEmail" placeholder="Seu e-mail" autocomplete="email">
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div style="font-size:11px;color:#2d5036;font-weight:500">Apenas seu e-mail — sem senha.<br>Seus dados ficam salvos na nuvem.</div>
+  </div>
+</div>
+
 <canvas id="gc"></canvas>
 <div class="app">
 
 <header class="hero">
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <div id="userPill" onclick="goCloud()" title="Ver meus projetos">
+      <span>👤</span><span id="userEmail" style="overflow:hidden;text-overflow:ellipsis">—</span>
+    </div>
+  </div>
   <div class="he">🌿 Gas Flux Analyzer · Câmaras de Incubação</div>
   <h1 class="ht">FluxCalc</h1>
   <p class="hs">🌱 Planta &nbsp;·&nbsp; 💧 Água &nbsp;·&nbsp; 🪨 Solo &nbsp;·&nbsp; 🌊 Sedimento<br>Dados brutos → regressão linear → fluxo (mg m⁻² dia⁻¹)</p>
@@ -176,6 +249,7 @@ details summary{cursor:pointer;font-size:12px;font-weight:800;text-transform:upp
 </header>
 
 <nav class="nav">
+  <button class="nb" id="nbCloud" onclick="goCloud()" style="border-left:3px solid #7ccb8f"><div class="nd" style="background:#9dddb0;font-size:14px">☁</div>Meus Projetos</button>
   <button class="nb active" id="nb0" onclick="goP(0)"><div class="nd">P</div>Projeto</button>
   <button class="nb" id="nb1" onclick="goP(1)"><div class="nd">1</div>Dados</button>
   <button class="nb" id="nb2" onclick="goP(2)"><div class="nd">2</div>Câmara</button>
@@ -185,6 +259,20 @@ details summary{cursor:pointer;font-size:12px;font-weight:800;text-transform:upp
 </nav>
 
 <main class="w">
+
+<!-- PAINEL MEUS PROJETOS -->
+<div class="panel h" id="pCloud">
+  <div class="card" style="border-left:5px solid #052e16;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
+      <div>
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#081a0c;margin-bottom:4px">☁️ Meus Projetos Salvos</div>
+        <div id="cloudUserLabel" style="font-size:13px;color:#2d5036;font-weight:600"></div>
+      </div>
+      <button class="btn bp" onclick="goP(0)">+ Novo projeto</button>
+    </div>
+  </div>
+  <div id="cloudProjGrid" style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:24px"></div>
+</div>
 
 <!-- P0 -->
 <div class="panel on" id="p0">
@@ -201,7 +289,10 @@ details summary{cursor:pointer;font-size:12px;font-weight:800;text-transform:upp
       <div class="f"><label>Local</label><input type="text" id="pLoc" placeholder="ex: LAB Pantanal, Cáceres-MT"></div>
     </div>
   </div>
-  <div class="brow" style="border:none;padding:0"><button class="btn bp" onclick="goP(1)">Inserir dados brutos →</button></div>
+  <div class="brow" style="border:none;padding:0">
+    <button class="btn bp" onclick="goP(1)">Inserir dados brutos →</button>
+    <button class="btn bo" onclick="saveProject()">💾 Salvar projeto</button>
+  </div>
 </div>
 
 <!-- P1 -->
@@ -313,6 +404,238 @@ details summary{cursor:pointer;font-size:12px;font-weight:800;text-transform:upp
 </div>
 
 <script>
+// ─────────────────────────────────────────
+//  AUTH & FIREBASE — login por e-mail
+// ─────────────────────────────────────────
+let currentUser = null; // email do usuário logado
+
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const err   = document.getElementById('loginErr');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    err.textContent = 'Digite um e-mail válido.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  currentUser = email;
+  localStorage.setItem('fluxcalc_user', email);
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('userEmail').textContent = email;
+  loadProjectsFromFirebase();
+}
+
+// Auto-login se já tinha feito antes
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('fluxcalc_user');
+  if (saved) {
+    currentUser = saved;
+    document.getElementById('loginEmail').value = saved;
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('userEmail').textContent = saved;
+    loadProjectsFromFirebase();
+  }
+  document.getElementById('loginEmail').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+
+// ─────────────────────────────────────────
+//  FIREBASE — salvar / carregar / deletar
+// ─────────────────────────────────────────
+function fbKey(email) {
+  // chave segura para Firebase: troca . e @ por _
+  return email.replace(/[.@]/g, '_');
+}
+
+function saveProject() {
+  if (!currentUser) { alert('Faça login primeiro.'); return; }
+  if (!window._fbReady) { alert('Firebase ainda não conectado. Aguarde e tente novamente.'); return; }
+
+  const name = document.getElementById('pName').value.trim() || 'Sem nome';
+  const project = {
+    name,
+    question:  document.getElementById('pQ').value,
+    author:    document.getElementById('pAuth').value,
+    inst:      document.getElementById('pInst').value,
+    date:      document.getElementById('pDate').value,
+    location:  document.getElementById('pLoc').value,
+    camR:      document.getElementById('cR').value,
+    camH:      document.getElementById('cH').value,
+    camName:   document.getElementById('cName').value,
+    camComp:   document.getElementById('cComp').value,
+    MW:        document.getElementById('cMW').value,
+    P:         document.getElementById('cP').value,
+    Rg:        document.getElementById('cRg').value,
+    reps:      reps,
+    savedAt:   new Date().toISOString()
+  };
+
+  const key   = fbKey(currentUser);
+  const newRef = window._fbPush(window._fbRef(window._db, 'fluxcalc/' + key));
+  window._fbSet(newRef, project)
+    .then(() => {
+      showSaveToast('✅ Projeto "' + name + '" salvo na nuvem!');
+      loadProjectsFromFirebase();
+    })
+    .catch(e => alert('Erro ao salvar: ' + e.message));
+}
+
+function loadProjectsFromFirebase() {
+  if (!currentUser || !window._fbReady) return;
+  const key = fbKey(currentUser);
+  const r   = window._fbRef(window._db, 'fluxcalc/' + key);
+  window._fbGet(r).then(snap => {
+    if (!snap.exists()) {
+      window._fluxProjects = {};
+      return;
+    }
+    window._fluxProjects = snap.val();
+    renderProjList();
+  }).catch(() => {});
+}
+
+function renderProjList() {
+  const data = window._fluxProjects || {};
+  const keys = Object.keys(data).reverse();
+
+  const lbl = document.getElementById('cloudUserLabel');
+  if (lbl) lbl.textContent = '👤 ' + currentUser;
+
+  const el = document.getElementById('cloudProjGrid');
+  if (!el) return;
+
+  if (!keys.length) {
+    el.innerHTML = `<div style="background:#fff;border:2.5px dashed #5db874;border-radius:10px;padding:40px;text-align:center;color:#2d5036;font-size:14px;font-weight:600">
+      Nenhum projeto salvo ainda.<br>
+      <span style="font-size:12px;font-weight:400;margin-top:8px;display:block">Crie um projeto na aba <strong>Projeto</strong> e clique em <strong>Salvar projeto</strong>.</span>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = keys.map(k => {
+    const p = data[k];
+    const dt = p.savedAt
+      ? new Date(p.savedAt).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '—';
+    const nReps  = (p.reps || []).length;
+    const treats = [...new Set((p.reps || []).map(r => r.tratamento).filter(Boolean))];
+    return `<div style="background:#fff;border:2.5px solid #5db874;border-radius:12px;padding:20px 22px;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;transition:border-color .15s" onmouseover="this.style.borderColor='#052e16'" onmouseout="this.style.borderColor='#5db874'">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:#020c04;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📁 ${p.name || 'Sem nome'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          ${p.author   ? `<span class="badge bdg">👤 ${p.author}</span>` : ''}
+          ${p.date     ? `<span class="badge bdo">📅 ${p.date}</span>` : ''}
+          ${p.location ? `<span class="badge bdb">📍 ${p.location}</span>` : ''}
+          ${nReps      ? `<span class="badge bdg">🔬 ${nReps} réplica${nReps>1?'s':''}</span>` : ''}
+          ${treats.map(t => `<span class="badge" style="background:#d8f0e0;color:#052e16;font-weight:700">🏷 ${t}</span>`).join('')}
+        </div>
+        ${p.question ? `<div style="font-size:12px;color:#2d5036;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">❓ ${p.question}</div>` : ''}
+        <div style="font-size:11px;color:#7ccb8f;margin-top:8px;font-family:'IBM Plex Mono',monospace">Salvo em ${dt}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;align-items:flex-end">
+        <button class="btn bp bsm" onclick="loadProject('${k}')">📂 Abrir</button>
+        <button class="btn bg bsm" onclick="duplicateProject('${k}')">📋 Duplicar</button>
+        <button class="btn bsm" style="background:#fff;border:2px solid #fbb;color:#5a0a0a" onclick="deleteProject(event,'${k}')">🗑 Excluir</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function goCloud() {
+  for (let i = 0; i < 6; i++) {
+    const p  = document.getElementById('p' + i);
+    const nb = document.getElementById('nb' + i);
+    if (p)  { p.classList.remove('on'); p.classList.add('h'); }
+    if (nb) { nb.classList.remove('active', 'done'); }
+  }
+  const pc  = document.getElementById('pCloud');
+  const nbc = document.getElementById('nbCloud');
+  pc.classList.add('on'); pc.classList.remove('h');
+  nbc.classList.add('active');
+  window.scrollTo(0, 0);
+  loadProjectsFromFirebase();
+}
+
+function loadProject(key) {
+  const p = (window._fluxProjects || {})[key];
+  if (!p) return;
+  document.getElementById('pName').value = p.name     || '';
+  document.getElementById('pQ').value    = p.question || '';
+  document.getElementById('pAuth').value = p.author   || '';
+  document.getElementById('pInst').value = p.inst     || '';
+  document.getElementById('pDate').value = p.date     || '';
+  document.getElementById('pLoc').value  = p.location || '';
+  document.getElementById('cR').value    = p.camR     || '12.15';
+  document.getElementById('cH').value    = p.camH     || '31';
+  if (document.getElementById('cName')) document.getElementById('cName').value = p.camName || '';
+  if (document.getElementById('cComp')) document.getElementById('cComp').value = p.camComp || '';
+  document.getElementById('cMW').value   = p.MW       || '44.01';
+  document.getElementById('cP').value    = p.P        || '0.98455465';
+  document.getElementById('cRg').value   = p.Rg       || '0.082057';
+  reps = p.reps || [];
+  renderRepCards();
+  document.getElementById('hReps').textContent = reps.length;
+  calcCh();
+  goP(0);
+  showSaveToast('📂 Projeto "' + (p.name || 'Sem nome') + '" carregado!');
+}
+
+function duplicateProject(key) {
+  if (!window._fbReady) return;
+  const p = (window._fluxProjects || {})[key];
+  if (!p) return;
+  const copy = { ...p, name: p.name + ' (copia)', savedAt: new Date().toISOString() };
+  const k2   = fbKey(currentUser);
+  const ref2 = window._fbPush(window._fbRef(window._db, 'fluxcalc/' + k2));
+  window._fbSet(ref2, copy).then(() => {
+    loadProjectsFromFirebase();
+    showSaveToast('📋 Projeto duplicado!');
+  });
+}
+
+function deleteProject(e, key) {
+  e.stopPropagation();
+  const p = (window._fluxProjects || {})[key];
+  if (!confirm('Excluir o projeto "' + (p ? p.name : key) + '"?')) return;
+  const k2 = fbKey(currentUser);
+  window._fbRemove(window._fbRef(window._db, 'fluxcalc/' + k2 + '/' + key))
+    .then(() => {
+      delete window._fluxProjects[key];
+      renderProjList();
+      showSaveToast('🗑️ Projeto excluído.');
+    });
+}
+
+function showProjPanel() { goCloud(); }
+
+function showSaveToast(msg) {
+  let t = document.getElementById('saveToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'saveToast';
+    Object.assign(t.style, {
+      position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%)',
+      background:'#052e16', color:'#fff', padding:'12px 22px', borderRadius:'30px',
+      fontFamily:'IBM Plex Sans,sans-serif', fontSize:'14px', fontWeight:'700',
+      zIndex:'9998', boxShadow:'0 4px 20px rgba(5,46,22,.4)', transition:'opacity .3s',
+      whiteSpace:'nowrap'
+    });
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity = '0'; }, 2800);
+}
+
+// ─────────────────────────────────────────
+//  Recarregar projetos quando Firebase pronto
+// ─────────────────────────────────────────
+document.addEventListener('firebase-ready', () => {
+  if (currentUser) loadProjectsFromFirebase();
+});
+
 // GAS ANIMATION
 (function(){
   const cv=document.getElementById('gc'),ctx=cv.getContext('2d');
@@ -340,6 +663,10 @@ let raw=[],reps=[],repCount=0,photos=[],selectedReps=new Set(),pCharts={};
 
 // NAV
 function goP(n){
+  // Desativar aba cloud
+  const nbc=document.getElementById('nbCloud'),pc=document.getElementById('pCloud');
+  if(nbc)nbc.classList.remove('active');
+  if(pc){pc.classList.remove('on');pc.classList.add('h');}
   for(let i=0;i<6;i++){
     const p=document.getElementById('p'+i),nb=document.getElementById('nb'+i);
     if(i===n){p.classList.add('on');p.classList.remove('h');}
